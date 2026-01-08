@@ -275,7 +275,8 @@ void BacktestWidget::renderBacktest(const QString& code, const QDate& startDate,
             }
         }
 
-        if (!inPosition && prev3Below && closes[i] > ma5[i]) {
+        const bool ma5Rising = (i > 0 && !std::isnan(ma5[i]) && !std::isnan(ma5[i - 1]) && ma5[i] > ma5[i - 1]);
+        if (!inPosition && prev3Below && closes[i] > ma5[i] && ma5Rising) {
             inPosition = true;
             entry = closes[i];
             const qint64 ts = QDateTime(barDates[i]).toMSecsSinceEpoch();
