@@ -4,6 +4,8 @@
 #include "Ma5Scanner.h"
 #include "QuoteModel.h"
 
+class BacktestWidget;
+
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
 QT_END_NAMESPACE
@@ -22,4 +24,5 @@ private:
     Ui::MainWindow *ui;
     Ma5Scanner* m_scanner = nullptr;
     QuoteModel* m_model = nullptr;
+    BacktestWidget* m_backtestWidget = nullptr;
 };
