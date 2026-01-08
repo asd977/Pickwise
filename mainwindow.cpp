@@ -1,10 +1,13 @@
 ﻿#include "mainwindow.h"
 #include "ui_mainwindow.h"
+#include "BacktestWidget.h"
 
 #include <QMessageBox>
 #include <QFileDialog>
 #include <QFile>
 #include <QTextStream>
+#include <QVBoxLayout>
+
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -14,6 +17,11 @@ MainWindow::MainWindow(QWidget *parent)
 
     m_scanner = new Ma5Scanner(this);
     m_model = new QuoteModel(this);
+
+    auto* chartLayout = new QVBoxLayout(ui->backtestHost);
+    chartLayout->setContentsMargins(0, 0, 0, 0);
+    m_backtestWidget = new BacktestWidget(ui->backtestHost);
+    chartLayout->addWidget(m_backtestWidget);
 
     ui->tableView->setModel(m_model);
     ui->tableView->setSortingEnabled(true);

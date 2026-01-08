@@ -39,6 +39,11 @@
         <string>MACD筛选</string>
        </property>
       </item>
+      <item>
+       <property name="text">
+        <string>推演</string>
+       </property>
+      </item>
      </widget>
     </item>
     <item>
@@ -313,6 +318,13 @@
            </size>
           </property>
          </spacer>
+        </item>
+       </layout>
+      </widget>
+      <widget class="QWidget" name="pageBacktest">
+       <layout class="QVBoxLayout" name="verticalLayoutBacktest">
+        <item>
+         <widget class="QWidget" name="backtestHost"/>
         </item>
        </layout>
       </widget>
