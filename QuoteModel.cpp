@@ -5,7 +5,7 @@
 QuoteModel::QuoteModel(QObject* parent) : QAbstractTableModel(parent) {}
 
 int QuoteModel::rowCount(const QModelIndex&) const { return m_rows.size(); }
-int QuoteModel::columnCount(const QModelIndex&) const { return 7; }
+int QuoteModel::columnCount(const QModelIndex&) const { return 9; }
 
 QVariant QuoteModel::headerData(int section, Qt::Orientation o, int role) const
 {
@@ -14,11 +14,13 @@ QVariant QuoteModel::headerData(int section, Qt::Orientation o, int role) const
         switch (section) {
         case 0: return "代码";
         case 1: return "名称";
-        case 2: return "市场";
-        case 3: return "现价";
-        case 4: return "MA5(近收)";
-        case 5: return "偏离(%)";
-        case 6: return "N(收<MA5)";
+        case 2: return "板块";
+        case 3: return "市盈率(PE)";
+        case 4: return "市场";
+        case 5: return "现价";
+        case 6: return "MA5(近收)";
+        case 7: return "偏离(%)";
+        case 8: return "N(收<MA5)";
         default: return {};
         }
     }
@@ -34,11 +36,13 @@ QVariant QuoteModel::data(const QModelIndex& idx, int role) const
         switch (idx.column()) {
         case 0: return r.code;
         case 1: return r.name;
-        case 2: return r.market;
-        case 3: return QString::number(r.last, 'f', 3);
-        case 4: return QString::number(r.ma5, 'f', 3);
-        case 5: return QString::number(r.biasPct, 'f', 2);
-        case 6: return r.belowDays;
+        case 2: return r.sector;
+        case 3: return QString::number(r.pe, 'f', 2);
+        case 4: return r.market;
+        case 5: return QString::number(r.last, 'f', 3);
+        case 6: return QString::number(r.ma5, 'f', 3);
+        case 7: return QString::number(r.biasPct, 'f', 2);
+        case 8: return r.belowDays;
         default: return {};
         }
     }
@@ -62,11 +66,13 @@ void QuoteModel::sort(int column, Qt::SortOrder order)
         switch (column) {
         case 0: return less(a.code, b.code);
         case 1: return less(a.name, b.name);
-        case 2: return less(a.market, b.market);
-        case 3: return less(a.last, b.last);
-        case 4: return less(a.ma5, b.ma5);
-        case 5: return less(a.biasPct, b.biasPct);
-        case 6: return less(a.belowDays, b.belowDays);
+        case 2: return less(a.sector, b.sector);
+        case 3: return less(a.pe, b.pe);
+        case 4: return less(a.market, b.market);
+        case 5: return less(a.last, b.last);
+        case 6: return less(a.ma5, b.ma5);
+        case 7: return less(a.biasPct, b.biasPct);
+        case 8: return less(a.belowDays, b.belowDays);
         default: return false;
         }
     });

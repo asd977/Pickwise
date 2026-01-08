@@ -19,8 +19,14 @@ MainWindow::MainWindow(QWidget *parent)
     ui->tableView->setSortingEnabled(true);
     ui->progressBar->setRange(0, 100);
     ui->progressBar->setValue(0);
+    ui->listMenu->setCurrentRow(0);
+    ui->stackedWidget->setCurrentIndex(0);
 
     setUiBusy(false);
+
+    connect(ui->listMenu, &QListWidget::currentRowChanged, this, [this](int row){
+        ui->stackedWidget->setCurrentIndex(row);
+    });
 
     connect(ui->btnScan, &QPushButton::clicked, this, [this](){
         ScanConfig cfg;
@@ -31,7 +37,7 @@ MainWindow::MainWindow(QWidget *parent)
         cfg.maxInFlight = ui->spinInFlight->value();
         cfg.timeoutMs = ui->spinTimeout->value();
         cfg.maxRetries = ui->spinRetry->value();
-        cfg.sortByAbs = ui->cbSortAbs->isChecked();
+        cfg.sortField = ui->comboSortField->currentIndex();
         cfg.sortDesc = ui->cbSortDesc->isChecked();
 
         m_model->setRows({});
@@ -60,10 +66,10 @@ MainWindow::MainWindow(QWidget *parent)
         }
         QTextStream ts(&f);
         ts.setCodec("UTF-8");
-        ts << "code,name,market,last,ma5,biasPct,belowDays\n";
+        ts << "code,name,sector,pe,market,last,ma5,biasPct,belowDays\n";
         for (const auto& r : m_model->rows()) {
-            ts << r.code << "," << r.name << "," << r.market << ","
-               << r.last << "," << r.ma5 << "," << r.biasPct << "," << r.belowDays << "\n";
+            ts << r.code << "," << r.name << "," << r.sector << "," << r.pe << ","
+               << r.market << "," << r.last << "," << r.ma5 << "," << r.biasPct << "," << r.belowDays << "\n";
         }
         f.close();
         QMessageBox::information(this, "导出", "导出完成");

@@ -13,6 +13,8 @@ class QNetworkReply;
 struct Spot {
     QString code;
     QString name;
+    QString sector;
+    double pe = 0;
     int market = 0;     // f13
     double last = 0;    // f2
 };
@@ -24,7 +26,7 @@ struct ScanConfig {
     int maxInFlight = 12;
     int timeoutMs = 12000;
     int maxRetries = 2;
-    bool sortByAbs = false;
+    int sortField = 0;
     bool sortDesc = true;
 };
 

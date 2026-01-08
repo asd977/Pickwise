@@ -7,6 +7,8 @@ struct PickRow
 {
     QString code;
     QString name;
+    QString sector;
+    double pe = 0;
     int market = 0;      // f13
     double last = 0;     // 现价（快照）
     double ma5 = 0;      // 最近已收盘日 MA5（rolling）

@@ -102,7 +102,7 @@ void Ma5Scanner::fetchSpotPage(int pn)
     q.addQueryItem("fid", "f3");
     q.addQueryItem("ut", kEM_UT);
     q.addQueryItem("fs", "m:0+t:6,m:0+t:80,m:1+t:2,m:1+t:23,m:0+t:81+s:2048");
-    q.addQueryItem("fields", "f12,f14,f2,f13");
+    q.addQueryItem("fields", "f12,f14,f2,f13,f9,f100");
     url.setQuery(q);
 
     QNetworkRequest req(url);
@@ -165,6 +165,8 @@ bool Ma5Scanner::parseSpotPage(const QByteArray& body, QVector<Spot>& outPage, i
         s.name   = o.value("f14").toString();
         s.last   = o.value("f2").toDouble();
         s.market = o.value("f13").toInt();
+        s.pe     = o.value("f9").toDouble();
+        s.sector = o.value("f100").toString();
         if (s.code.size() == 6 && s.last > 0) outPage.push_back(s);
     };
 
@@ -219,6 +221,7 @@ void Ma5Scanner::pumpKline()
                 if (s.last > st.ma5Last && st.lastNDaysCloseBelowMA5) {
                     PickRow r;
                     r.code = s.code; r.name = s.name; r.market = s.market;
+                    r.sector = s.sector; r.pe = s.pe;
                     r.last = s.last; r.ma5 = st.ma5Last;
                     r.biasPct = (r.last / r.ma5 - 1.0) * 100.0;
                     r.belowDays = m_cfg.belowDays;
@@ -237,7 +240,11 @@ void Ma5Scanner::pumpKline()
     // ✅ 只有当队列空 + 无在途，才完成
     if (!m_cancelled && m_inFlight == 0 && m_queue.isEmpty()) {
         auto key = [&](const PickRow& r){
-            return m_cfg.sortByAbs ? std::abs(r.biasPct) : r.biasPct;
+            switch (m_cfg.sortField) {
+            case 1: return std::abs(r.biasPct);
+            case 2: return r.pe;
+            default: return r.biasPct;
+            }
         };
         std::sort(m_results.begin(), m_results.end(), [&](const PickRow& a, const PickRow& b){
             return m_cfg.sortDesc ? (key(a) > key(b)) : (key(a) < key(b));
@@ -364,6 +371,7 @@ void Ma5Scanner::sendKlineTask(Task t)
             if (t.s.last > st.ma5Last && st.lastNDaysCloseBelowMA5) {
                 PickRow r;
                 r.code = t.s.code; r.name = t.s.name; r.market = t.s.market;
+                r.sector = t.s.sector; r.pe = t.s.pe;
                 r.last = t.s.last; r.ma5 = st.ma5Last;
                 r.biasPct = (r.last / r.ma5 - 1.0) * 100.0;
                 r.belowDays = m_cfg.belowDays;
