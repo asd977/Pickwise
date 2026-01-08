@@ -5,6 +5,7 @@
 #include <QPushButton>
 #include <QLabel>
 #include <QMessageBox>
+#include <QSpinBox>
 #include <QGridLayout>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -80,6 +81,16 @@ BacktestWidget::BacktestWidget(QWidget* parent)
 
     m_runButton = new QPushButton("开始推演", this);
 
+    auto* buyBelowLabel = new QLabel("买入:前N日<MA5", this);
+    m_buyBelowDaysSpin = new QSpinBox(this);
+    m_buyBelowDaysSpin->setRange(1, 20);
+    m_buyBelowDaysSpin->setValue(3);
+
+    auto* sellBelowLabel = new QLabel("卖出:前N日<MA5", this);
+    m_sellBelowDaysSpin = new QSpinBox(this);
+    m_sellBelowDaysSpin->setRange(1, 20);
+    m_sellBelowDaysSpin->setValue(1);
+
     formLayout->addWidget(codeLabel, 0, 0);
     formLayout->addWidget(m_codeEdit, 0, 1);
     formLayout->addWidget(startLabel, 0, 2);
@@ -87,6 +98,11 @@ BacktestWidget::BacktestWidget(QWidget* parent)
     formLayout->addWidget(endLabel, 0, 4);
     formLayout->addWidget(m_endDateEdit, 0, 5);
     formLayout->addWidget(m_runButton, 0, 6);
+
+    formLayout->addWidget(buyBelowLabel, 1, 0);
+    formLayout->addWidget(m_buyBelowDaysSpin, 1, 1);
+    formLayout->addWidget(sellBelowLabel, 1, 2);
+    formLayout->addWidget(m_sellBelowDaysSpin, 1, 3);
 
     m_summaryLabel = new QLabel("请输入代码与日期范围后开始推演。", this);
 
@@ -260,28 +276,31 @@ void BacktestWidget::renderBacktest(const QString& code, const QDate& startDate,
     int tradeCount = 0;
     QVector<QPointF> buyPoints;
     QVector<QPointF> sellPoints;
+    const int buyBelowDays = m_buyBelowDaysSpin ? m_buyBelowDaysSpin->value() : 3;
+    const int sellBelowDays = m_sellBelowDaysSpin ? m_sellBelowDaysSpin->value() : 1;
 
     for (int i = startIndex; i <= endIndex; ++i) {
         if (i < 4) continue;
-        bool prev3Below = true;
-        if (i < 3) {
-            prev3Below = false;
-        } else {
-            for (int j = i - 3; j <= i - 1; ++j) {
+        const auto allBelowMa5 = [&](int endIndex, int days) -> bool {
+            if (days <= 0) return false;
+            const int start = endIndex - days + 1;
+            if (start < 0) return false;
+            for (int j = start; j <= endIndex; ++j) {
                 if (j < 4 || std::isnan(ma5[j]) || closes[j] >= ma5[j]) {
-                    prev3Below = false;
-                    break;
+                    return false;
                 }
             }
-        }
+            return true;
+        };
 
+        const bool buyWindowBelow = allBelowMa5(i - 1, buyBelowDays);
         const bool ma5Rising = (i > 0 && !std::isnan(ma5[i]) && !std::isnan(ma5[i - 1]) && ma5[i] > ma5[i - 1]);
-        if (!inPosition && prev3Below && closes[i] > ma5[i] && ma5Rising) {
+        if (!inPosition && buyWindowBelow && closes[i] > ma5[i] && ma5Rising) {
             inPosition = true;
             entry = closes[i];
             const qint64 ts = QDateTime(barDates[i]).toMSecsSinceEpoch();
             buyPoints.push_back(QPointF(ts, closes[i]));
-        } else if (inPosition && closes[i] < ma5[i]) {
+        } else if (inPosition && allBelowMa5(i, sellBelowDays)) {
             inPosition = false;
             equity *= closes[i] / entry;
             ++tradeCount;
