@@ -6,6 +6,7 @@
 #include <QLabel>
 #include <QMessageBox>
 #include <QSpinBox>
+#include <QDoubleSpinBox>
 #include <QGridLayout>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -86,6 +87,12 @@ BacktestWidget::BacktestWidget(QWidget* parent)
     m_buyBelowDaysSpin->setRange(1, 20);
     m_buyBelowDaysSpin->setValue(3);
 
+    auto* buyMaxRiseLabel = new QLabel("买入当日涨幅≤%", this);
+    m_buyMaxRiseSpin = new QDoubleSpinBox(this);
+    m_buyMaxRiseSpin->setRange(0.0, 100.0);
+    m_buyMaxRiseSpin->setDecimals(2);
+    m_buyMaxRiseSpin->setValue(9.90);
+
     auto* sellBelowLabel = new QLabel("卖出:前N日<MA5", this);
     m_sellBelowDaysSpin = new QSpinBox(this);
     m_sellBelowDaysSpin->setRange(1, 20);
@@ -101,8 +108,10 @@ BacktestWidget::BacktestWidget(QWidget* parent)
 
     formLayout->addWidget(buyBelowLabel, 1, 0);
     formLayout->addWidget(m_buyBelowDaysSpin, 1, 1);
-    formLayout->addWidget(sellBelowLabel, 1, 2);
-    formLayout->addWidget(m_sellBelowDaysSpin, 1, 3);
+    formLayout->addWidget(buyMaxRiseLabel, 1, 2);
+    formLayout->addWidget(m_buyMaxRiseSpin, 1, 3);
+    formLayout->addWidget(sellBelowLabel, 1, 4);
+    formLayout->addWidget(m_sellBelowDaysSpin, 1, 5);
 
     m_summaryLabel = new QLabel("请输入代码与日期范围后开始推演。", this);
 
@@ -278,6 +287,7 @@ void BacktestWidget::renderBacktest(const QString& code, const QDate& startDate,
     QVector<QPointF> sellPoints;
     const int buyBelowDays = m_buyBelowDaysSpin ? m_buyBelowDaysSpin->value() : 3;
     const int sellBelowDays = m_sellBelowDaysSpin ? m_sellBelowDaysSpin->value() : 1;
+    const double buyMaxRisePct = m_buyMaxRiseSpin ? m_buyMaxRiseSpin->value() : 100.0;
 
     for (int i = startIndex; i <= endIndex; ++i) {
         if (i < 4) continue;
@@ -295,7 +305,10 @@ void BacktestWidget::renderBacktest(const QString& code, const QDate& startDate,
 
         const bool buyWindowBelow = allBelowMa5(i - 1, buyBelowDays);
         const bool ma5Rising = (i > 0 && !std::isnan(ma5[i]) && !std::isnan(ma5[i - 1]) && ma5[i] > ma5[i - 1]);
-        if (!inPosition && buyWindowBelow && closes[i] > ma5[i] && ma5Rising) {
+        const bool buyRiseOk = (i > 0 && closes[i - 1] > 0)
+            ? ((closes[i] / closes[i - 1] - 1.0) * 100.0 <= buyMaxRisePct)
+            : false;
+        if (!inPosition && buyWindowBelow && closes[i] > ma5[i] && ma5Rising && buyRiseOk) {
             inPosition = true;
             entry = closes[i];
             const qint64 ts = QDateTime(barDates[i]).toMSecsSinceEpoch();

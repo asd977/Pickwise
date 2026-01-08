@@ -12,6 +12,7 @@ class QDateEdit;
 class QPushButton;
 class QLabel;
 class QSpinBox;
+class QDoubleSpinBox;
 class QDate;
 namespace QtCharts { class QChartView; }
 
@@ -36,6 +37,7 @@ private:
     QDateEdit* m_endDateEdit = nullptr;
     QSpinBox* m_buyBelowDaysSpin = nullptr;
     QSpinBox* m_sellBelowDaysSpin = nullptr;
+    QDoubleSpinBox* m_buyMaxRiseSpin = nullptr;
     QPushButton* m_runButton = nullptr;
     QLabel* m_summaryLabel = nullptr;
     QtCharts::QChartView* m_chartView = nullptr;
