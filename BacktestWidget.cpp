@@ -127,19 +127,6 @@ BacktestWidget::BacktestWidget(QWidget* parent)
     connect(m_runButton, &QPushButton::clicked, this, &BacktestWidget::startRequest);
 }
 
-void BacktestWidget::showKlineForCode(const QString& code)
-{
-    const QString trimmed = code.trimmed();
-    if (trimmed.isEmpty()) {
-        QMessageBox::warning(this, "推演", "股票代码为空，无法加载K线。");
-        return;
-    }
-    m_codeEdit->setText(trimmed);
-    m_startDateEdit->setDate(QDate::currentDate().addMonths(-6));
-    m_endDateEdit->setDate(QDate::currentDate());
-    startRequest();
-}
-
 void BacktestWidget::setBusy(bool busy)
 {
     m_runButton->setEnabled(!busy);

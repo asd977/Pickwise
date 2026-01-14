@@ -1,4 +1,4 @@
-QT       += core gui network charts
+QT       += core gui network charts webenginewidgets
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
@@ -17,6 +17,7 @@ DEFINES += QT_DEPRECATED_WARNINGS
 
 SOURCES += \
     BacktestWidget.cpp \
+    KlineDialog.cpp \
     Ma5Scanner.cpp \
     QuoteModel.cpp \
     main.cpp \
@@ -24,6 +25,7 @@ SOURCES += \
 
 HEADERS += \
     BacktestWidget.h \
+    KlineDialog.h \
     Ma5Scanner.h \
     QuoteModel.h \
     mainwindow.h

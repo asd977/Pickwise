@@ -1,6 +1,7 @@
 ﻿#include "mainwindow.h"
 #include "ui_mainwindow.h"
 #include "BacktestWidget.h"
+#include "KlineDialog.h"
 
 #include <QMessageBox>
 #include <QFileDialog>
@@ -85,8 +86,10 @@ MainWindow::MainWindow(QWidget *parent)
         if (!index.isValid()) return;
         const auto& rows = m_model->rows();
         if (index.row() < 0 || index.row() >= rows.size()) return;
-        ui->listMenu->setCurrentRow(2);
-        m_backtestWidget->showKlineForCode(rows[index.row()].code);
+        const auto& row = rows[index.row()];
+        auto* dialog = new KlineDialog(row.code, row.market, row.name, this);
+        dialog->setAttribute(Qt::WA_DeleteOnClose, true);
+        dialog->show();
     });
 
     connect(ui->btnScan, &QPushButton::clicked, this, [this](){

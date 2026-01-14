@@ -21,7 +21,6 @@ class BacktestWidget : public QWidget
     Q_OBJECT
 public:
     explicit BacktestWidget(QWidget* parent = nullptr);
-    void showKlineForCode(const QString& code);
 
 private:
     void setBusy(bool busy);
