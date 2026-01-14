@@ -127,6 +127,19 @@ BacktestWidget::BacktestWidget(QWidget* parent)
     connect(m_runButton, &QPushButton::clicked, this, &BacktestWidget::startRequest);
 }
 
+void BacktestWidget::showKlineForCode(const QString& code)
+{
+    const QString trimmed = code.trimmed();
+    if (trimmed.isEmpty()) {
+        QMessageBox::warning(this, "推演", "股票代码为空，无法加载K线。");
+        return;
+    }
+    m_codeEdit->setText(trimmed);
+    m_startDateEdit->setDate(QDate::currentDate().addMonths(-6));
+    m_endDateEdit->setDate(QDate::currentDate());
+    startRequest();
+}
+
 void BacktestWidget::setBusy(bool busy)
 {
     m_runButton->setEnabled(!busy);
@@ -255,6 +268,7 @@ void BacktestWidget::renderBacktest(const QString& code, const QDate& startDate,
     const int n = closes.size();
     QVector<double> ma5(n, std::numeric_limits<double>::quiet_NaN());
     QVector<double> ma10(n, std::numeric_limits<double>::quiet_NaN());
+    QVector<double> ma20(n, std::numeric_limits<double>::quiet_NaN());
     for (int i = 0; i < n; ++i) {
         if (i >= 4) {
             double sum = 0;
@@ -265,6 +279,11 @@ void BacktestWidget::renderBacktest(const QString& code, const QDate& startDate,
             double sum = 0;
             for (int j = i - 9; j <= i; ++j) sum += closes[j];
             ma10[i] = sum / 10.0;
+        }
+        if (i >= 19) {
+            double sum = 0;
+            for (int j = i - 19; j <= i; ++j) sum += closes[j];
+            ma20[i] = sum / 20.0;
         }
     }
 
@@ -350,6 +369,10 @@ void BacktestWidget::renderBacktest(const QString& code, const QDate& startDate,
     ma10Series->setName("MA10");
     ma10Series->setColor(QColor("#1976d2"));
 
+    auto* ma20Series = new QtCharts::QLineSeries();
+    ma20Series->setName("MA20");
+    ma20Series->setColor(QColor("#7b1fa2"));
+
     auto* buySeries = new QtCharts::QScatterSeries();
     buySeries->setName("买点");
     buySeries->setColor(QColor("#2e7d32"));
@@ -372,6 +395,7 @@ void BacktestWidget::renderBacktest(const QString& code, const QDate& startDate,
         maxPrice = std::max(maxPrice, highs[i]);
         if (!std::isnan(ma5[i])) ma5Series->append(ts, ma5[i]);
         if (!std::isnan(ma10[i])) ma10Series->append(ts, ma10[i]);
+        if (!std::isnan(ma20[i])) ma20Series->append(ts, ma20[i]);
     }
 
     for (const auto& p : buyPoints) buySeries->append(p);
@@ -380,6 +404,7 @@ void BacktestWidget::renderBacktest(const QString& code, const QDate& startDate,
     chart->addSeries(candleSeries);
     chart->addSeries(ma5Series);
     chart->addSeries(ma10Series);
+    chart->addSeries(ma20Series);
     chart->addSeries(buySeries);
     chart->addSeries(sellSeries);
 
@@ -391,6 +416,7 @@ void BacktestWidget::renderBacktest(const QString& code, const QDate& startDate,
     candleSeries->attachAxis(axisX);
     ma5Series->attachAxis(axisX);
     ma10Series->attachAxis(axisX);
+    ma20Series->attachAxis(axisX);
     buySeries->attachAxis(axisX);
     sellSeries->attachAxis(axisX);
 
@@ -404,6 +430,7 @@ void BacktestWidget::renderBacktest(const QString& code, const QDate& startDate,
     candleSeries->attachAxis(axisY);
     ma5Series->attachAxis(axisY);
     ma10Series->attachAxis(axisY);
+    ma20Series->attachAxis(axisY);
     buySeries->attachAxis(axisY);
     sellSeries->attachAxis(axisY);
 

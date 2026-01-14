@@ -7,6 +7,49 @@
 #include <QFile>
 #include <QTextStream>
 #include <QVBoxLayout>
+#include <QStyledItemDelegate>
+#include <QStyleOptionButton>
+#include <QMouseEvent>
+#include <QApplication>
+#include <QPainter>
+
+class KlineButtonDelegate : public QStyledItemDelegate
+{
+    Q_OBJECT
+public:
+    explicit KlineButtonDelegate(QObject* parent = nullptr)
+        : QStyledItemDelegate(parent)
+    {}
+
+    void paint(QPainter* painter, const QStyleOptionViewItem& option,
+               const QModelIndex& index) const override
+    {
+        QStyleOptionButton button;
+        button.rect = option.rect.adjusted(6, 4, -6, -4);
+        button.state = QStyle::State_Enabled;
+        button.text = QStringLiteral("K线");
+        if (option.state & QStyle::State_MouseOver) {
+            button.state |= QStyle::State_MouseOver;
+        }
+        QApplication::style()->drawControl(QStyle::CE_PushButton, &button, painter);
+        Q_UNUSED(index);
+    }
+
+    bool editorEvent(QEvent* event, QAbstractItemModel*, const QStyleOptionViewItem& option,
+                     const QModelIndex& index) override
+    {
+        if (event->type() == QEvent::MouseButtonRelease) {
+            auto* mouseEvent = static_cast<QMouseEvent*>(event);
+            if (option.rect.contains(mouseEvent->pos())) {
+                emit klineClicked(index);
+            }
+        }
+        return true;
+    }
+
+signals:
+    void klineClicked(const QModelIndex& index);
+};
 
 
 MainWindow::MainWindow(QWidget *parent)
@@ -25,6 +68,8 @@ MainWindow::MainWindow(QWidget *parent)
 
     ui->tableView->setModel(m_model);
     ui->tableView->setSortingEnabled(true);
+    auto* klineDelegate = new KlineButtonDelegate(this);
+    ui->tableView->setItemDelegateForColumn(9, klineDelegate);
     ui->progressBar->setRange(0, 100);
     ui->progressBar->setValue(0);
     ui->listMenu->setCurrentRow(0);
@@ -34,6 +79,14 @@ MainWindow::MainWindow(QWidget *parent)
 
     connect(ui->listMenu, &QListWidget::currentRowChanged, this, [this](int row){
         ui->stackedWidget->setCurrentIndex(row);
+    });
+
+    connect(klineDelegate, &KlineButtonDelegate::klineClicked, this, [this](const QModelIndex& index) {
+        if (!index.isValid()) return;
+        const auto& rows = m_model->rows();
+        if (index.row() < 0 || index.row() >= rows.size()) return;
+        ui->listMenu->setCurrentRow(2);
+        m_backtestWidget->showKlineForCode(rows[index.row()].code);
     });
 
     connect(ui->btnScan, &QPushButton::clicked, this, [this](){

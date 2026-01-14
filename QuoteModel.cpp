@@ -5,7 +5,7 @@
 QuoteModel::QuoteModel(QObject* parent) : QAbstractTableModel(parent) {}
 
 int QuoteModel::rowCount(const QModelIndex&) const { return m_rows.size(); }
-int QuoteModel::columnCount(const QModelIndex&) const { return 9; }
+int QuoteModel::columnCount(const QModelIndex&) const { return 10; }
 
 QVariant QuoteModel::headerData(int section, Qt::Orientation o, int role) const
 {
@@ -21,6 +21,7 @@ QVariant QuoteModel::headerData(int section, Qt::Orientation o, int role) const
         case 6: return "MA5(近收)";
         case 7: return "偏离(%)";
         case 8: return "N(收<MA5)";
+        case 9: return "K线";
         default: return {};
         }
     }
@@ -43,6 +44,7 @@ QVariant QuoteModel::data(const QModelIndex& idx, int role) const
         case 6: return QString::number(r.ma5, 'f', 3);
         case 7: return QString::number(r.biasPct, 'f', 2);
         case 8: return r.belowDays;
+        case 9: return "查看";
         default: return {};
         }
     }
@@ -73,6 +75,7 @@ void QuoteModel::sort(int column, Qt::SortOrder order)
         case 6: return less(a.ma5, b.ma5);
         case 7: return less(a.biasPct, b.biasPct);
         case 8: return less(a.belowDays, b.belowDays);
+        case 9: return false;
         default: return false;
         }
     });
