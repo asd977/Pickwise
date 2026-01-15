@@ -60,14 +60,23 @@ void KlineDialog::loadChart(const QString& symbol)
   <meta charset="utf-8">
   <style>
     html, body { margin: 0; width: 100%%; height: 100%%; background: #101014; overflow: hidden; }
-    body { display: flex; }
-    #tv_container { flex: 1; min-height: 100%%; }
+    #tv_container { width: 100%%; height: 100%%; }
+    #tv_container > div, #tv_container iframe { width: 100%%; height: 100%%; }
   </style>
 </head>
 <body>
   <div id="tv_container"></div>
   <script src="https://s3.tradingview.com/tv.js"></script>
   <script>
+    function resizeContainer() {
+      var container = document.getElementById('tv_container');
+      if (container) {
+        container.style.height = window.innerHeight + 'px';
+      }
+    }
+    window.addEventListener('resize', resizeContainer);
+    resizeContainer();
+
     var widget = new TradingView.widget({
       "autosize": true,
       "symbol": "%1",
