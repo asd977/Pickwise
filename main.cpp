@@ -1,6 +1,6 @@
 ﻿#include <QApplication>
 #include <QLoggingCategory>
-#include <QtWebEngine/QtWebEngine>
+#include <QtWebEngineCore/QtWebEngineCore>
 #include "mainwindow.h"
 
 int main(int argc, char *argv[])
@@ -13,7 +13,6 @@ int main(int argc, char *argv[])
     );
 
     QApplication a(argc, argv);
-    QtWebEngine::initialize();
     MainWindow w;
     w.show();
     return a.exec();

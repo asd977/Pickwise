@@ -87,7 +87,6 @@ MainWindow::MainWindow(QWidget *parent)
             return;
         }
         QTextStream ts(&f);
-        ts.setCodec("UTF-8");
         ts << "code,name,sector,pe,market,last,ma5,biasPct,belowDays\n";
         for (const auto& r : m_model->rows()) {
             ts << r.code << "," << r.name << "," << r.sector << "," << r.pe << ","
