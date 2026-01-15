@@ -2,55 +2,13 @@
 #include "ui_mainwindow.h"
 #include "BacktestWidget.h"
 #include "KlineDialog.h"
+#include "KlineButtonDelegate.h"
 
 #include <QMessageBox>
 #include <QFileDialog>
 #include <QFile>
 #include <QTextStream>
 #include <QVBoxLayout>
-#include <QStyledItemDelegate>
-#include <QStyleOptionButton>
-#include <QMouseEvent>
-#include <QApplication>
-#include <QPainter>
-
-class KlineButtonDelegate : public QStyledItemDelegate
-{
-    Q_OBJECT
-public:
-    explicit KlineButtonDelegate(QObject* parent = nullptr)
-        : QStyledItemDelegate(parent)
-    {}
-
-    void paint(QPainter* painter, const QStyleOptionViewItem& option,
-               const QModelIndex& index) const override
-    {
-        QStyleOptionButton button;
-        button.rect = option.rect.adjusted(6, 4, -6, -4);
-        button.state = QStyle::State_Enabled;
-        button.text = QStringLiteral("K线");
-        if (option.state & QStyle::State_MouseOver) {
-            button.state |= QStyle::State_MouseOver;
-        }
-        QApplication::style()->drawControl(QStyle::CE_PushButton, &button, painter);
-        Q_UNUSED(index);
-    }
-
-    bool editorEvent(QEvent* event, QAbstractItemModel*, const QStyleOptionViewItem& option,
-                     const QModelIndex& index) override
-    {
-        if (event->type() == QEvent::MouseButtonRelease) {
-            auto* mouseEvent = static_cast<QMouseEvent*>(event);
-            if (option.rect.contains(mouseEvent->pos())) {
-                emit klineClicked(index);
-            }
-        }
-        return true;
-    }
-
-signals:
-    void klineClicked(const QModelIndex& index);
-};
 
 
 MainWindow::MainWindow(QWidget *parent)

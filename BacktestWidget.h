@@ -14,7 +14,7 @@ class QLabel;
 class QSpinBox;
 class QDoubleSpinBox;
 class QDate;
-namespace QtCharts { class QChartView; }
+class QChartView;
 
 class BacktestWidget : public QWidget
 {
@@ -40,7 +40,7 @@ private:
     QDoubleSpinBox* m_buyMaxRiseSpin = nullptr;
     QPushButton* m_runButton = nullptr;
     QLabel* m_summaryLabel = nullptr;
-    QtCharts::QChartView* m_chartView = nullptr;
+    QChartView* m_chartView = nullptr;
     QNetworkAccessManager* m_nam = nullptr;
     QNetworkReply* m_reply = nullptr;
 };

@@ -19,14 +19,14 @@
 #include <QJsonObject>
 #include <QJsonArray>
 #include <QDateTime>
-#include <QtCharts/QChart>
-#include <QtCharts/QChartView>
-#include <QtCharts/QCandlestickSeries>
-#include <QtCharts/QCandlestickSet>
-#include <QtCharts/QLineSeries>
-#include <QtCharts/QScatterSeries>
-#include <QtCharts/QDateTimeAxis>
-#include <QtCharts/QValueAxis>
+#include <QChart>
+#include <QChartView>
+#include <QCandlestickSeries>
+#include <QCandlestickSet>
+#include <QLineSeries>
+#include <QScatterSeries>
+#include <QDateTimeAxis>
+#include <QValueAxis>
 #include <algorithm>
 #include <cmath>
 #include <limits>
@@ -115,7 +115,7 @@ BacktestWidget::BacktestWidget(QWidget* parent)
 
     m_summaryLabel = new QLabel("请输入代码与日期范围后开始推演。", this);
 
-    m_chartView = new QtCharts::QChartView(this);
+    m_chartView = new QChartView(this);
     m_chartView->setRenderHint(QPainter::Antialiasing);
 
     topLayout->addLayout(formLayout);
@@ -317,13 +317,13 @@ void BacktestWidget::renderBacktest(const QString& code, const QDate& startDate,
         if (!inPosition && buyWindowBelow && closes[i] > ma5[i] && ma5Rising && buyRiseOk) {
             inPosition = true;
             entry = closes[i];
-            const qint64 ts = QDateTime(barDates[i]).toMSecsSinceEpoch();
+            const qint64 ts = QDateTime(barDates[i].startOfDay()).toMSecsSinceEpoch();
             buyPoints.push_back(QPointF(ts, closes[i]));
         } else if (inPosition && allBelowMa5(i, sellBelowDays)) {
             inPosition = false;
             equity *= closes[i] / entry;
             ++tradeCount;
-            const qint64 ts = QDateTime(barDates[i]).toMSecsSinceEpoch();
+            const qint64 ts = QDateTime(barDates[i].startOfDay()).toMSecsSinceEpoch();
             sellPoints.push_back(QPointF(ts, closes[i]));
         }
     }
@@ -331,7 +331,7 @@ void BacktestWidget::renderBacktest(const QString& code, const QDate& startDate,
     if (inPosition) {
         equity *= closes[endIndex] / entry;
         ++tradeCount;
-        const qint64 ts = QDateTime(barDates[endIndex]).toMSecsSinceEpoch();
+        const qint64 ts = QDateTime(barDates[endIndex].startOfDay()).toMSecsSinceEpoch();
         sellPoints.push_back(QPointF(ts, closes[endIndex]));
     }
 
@@ -341,31 +341,31 @@ void BacktestWidget::renderBacktest(const QString& code, const QDate& startDate,
                             .arg(tradeCount)
                             .arg(QString::number(pct, 'f', 2)));
 
-    auto* chart = new QtCharts::QChart();
+    auto* chart = new QChart();
     chart->setTitle(QString("%1 K线推演").arg(code));
 
-    auto* candleSeries = new QtCharts::QCandlestickSeries();
+    auto* candleSeries = new QCandlestickSeries();
     candleSeries->setIncreasingColor(QColor("#d32f2f"));
     candleSeries->setDecreasingColor(QColor("#2e7d32"));
 
-    auto* ma5Series = new QtCharts::QLineSeries();
+    auto* ma5Series = new QLineSeries();
     ma5Series->setName("MA5");
     ma5Series->setColor(QColor("#ff9800"));
 
-    auto* ma10Series = new QtCharts::QLineSeries();
+    auto* ma10Series = new QLineSeries();
     ma10Series->setName("MA10");
     ma10Series->setColor(QColor("#1976d2"));
 
-    auto* ma20Series = new QtCharts::QLineSeries();
+    auto* ma20Series = new QLineSeries();
     ma20Series->setName("MA20");
     ma20Series->setColor(QColor("#7b1fa2"));
 
-    auto* buySeries = new QtCharts::QScatterSeries();
+    auto* buySeries = new QScatterSeries();
     buySeries->setName("买点");
     buySeries->setColor(QColor("#2e7d32"));
     buySeries->setMarkerSize(8.0);
 
-    auto* sellSeries = new QtCharts::QScatterSeries();
+    auto* sellSeries = new QScatterSeries();
     sellSeries->setName("卖点");
     sellSeries->setColor(QColor("#d32f2f"));
     sellSeries->setMarkerSize(8.0);
@@ -375,8 +375,8 @@ void BacktestWidget::renderBacktest(const QString& code, const QDate& startDate,
 
     for (int i = startIndex; i <= endIndex; ++i) {
         if (!barDates[i].isValid()) continue;
-        const qint64 ts = QDateTime(barDates[i]).toMSecsSinceEpoch();
-        auto* set = new QtCharts::QCandlestickSet(opens[i], highs[i], lows[i], closes[i], ts);
+        const qint64 ts = QDateTime(barDates[i].startOfDay()).toMSecsSinceEpoch();
+        auto* set = new QCandlestickSet(opens[i], highs[i], lows[i], closes[i], ts);
         candleSeries->append(set);
         minPrice = std::min(minPrice, lows[i]);
         maxPrice = std::max(maxPrice, highs[i]);
@@ -395,10 +395,11 @@ void BacktestWidget::renderBacktest(const QString& code, const QDate& startDate,
     chart->addSeries(buySeries);
     chart->addSeries(sellSeries);
 
-    auto* axisX = new QtCharts::QDateTimeAxis;
+    auto* axisX = new QDateTimeAxis;
     axisX->setFormat("yyyy-MM-dd");
     axisX->setTickCount(8);
-    axisX->setRange(QDateTime(barDates[startIndex]), QDateTime(barDates[endIndex]));
+    axisX->setRange(QDateTime(barDates[startIndex].startOfDay()),
+                    QDateTime(barDates[endIndex].startOfDay()));
     chart->addAxis(axisX, Qt::AlignBottom);
     candleSeries->attachAxis(axisX);
     ma5Series->attachAxis(axisX);
@@ -407,7 +408,7 @@ void BacktestWidget::renderBacktest(const QString& code, const QDate& startDate,
     buySeries->attachAxis(axisX);
     sellSeries->attachAxis(axisX);
 
-    auto* axisY = new QtCharts::QValueAxis;
+    auto* axisY = new QValueAxis;
     axisY->setLabelFormat("%.2f");
     if (minPrice < maxPrice) {
         const double padding = (maxPrice - minPrice) * 0.05;

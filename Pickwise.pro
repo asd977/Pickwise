@@ -17,6 +17,7 @@ DEFINES += QT_DEPRECATED_WARNINGS
 
 SOURCES += \
     BacktestWidget.cpp \
+    KlineButtonDelegate.cpp \
     KlineDialog.cpp \
     Ma5Scanner.cpp \
     QuoteModel.cpp \
@@ -25,6 +26,7 @@ SOURCES += \
 
 HEADERS += \
     BacktestWidget.h \
+    KlineButtonDelegate.h \
     KlineDialog.h \
     Ma5Scanner.h \
     QuoteModel.h \
