@@ -2,8 +2,8 @@
 
 #include <QVBoxLayout>
 #include <QLabel>
-#include <QWebEngineView>
-#include <QWebEngineSettings>
+#include <QtWebEngineWidgets/QWebEngineView>
+#include <QtWebEngineCore/QWebEngineSettings>
 
 KlineDialog::KlineDialog(const QString& code, int market, const QString& name, QWidget* parent)
     : QDialog(parent)
