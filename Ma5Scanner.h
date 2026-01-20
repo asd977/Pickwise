@@ -21,6 +21,7 @@ struct Spot {
 
 struct ScanConfig {
     int belowDays = 3;
+    int maPeriod = 5;
     bool includeBJ = true;
     int pageSize = 200;
     int maxInFlight = 12;
@@ -32,8 +33,8 @@ struct ScanConfig {
 
 struct KlineStats {
     bool ok = false;
-    double ma5Last = 0;
-    bool lastNDaysCloseBelowMA5 = false;
+    double maLast = 0;
+    bool lastNDaysCloseBelowMA = false;
 };
 
 class Ma5Scanner : public QObject
@@ -75,7 +76,7 @@ private:
 
     static QByteArray normalizeJsonMaybeJsonp(const QByteArray& body);
     static bool parseKlineBars(const QByteArray& body, QVector<QString>& dates, QVector<double>& closes);
-    static bool computeStatsFromBars(const QVector<QString>& dates, const QVector<double>& closes, int belowDays, KlineStats& out);
+    static bool computeStatsFromBars(const QVector<QString>& dates, const QVector<double>& closes, int maPeriod, int belowDays, KlineStats& out);
 
     // cache
     void loadCache();

@@ -5,7 +5,7 @@
 QuoteModel::QuoteModel(QObject* parent) : QAbstractTableModel(parent) {}
 
 int QuoteModel::rowCount(const QModelIndex&) const { return m_rows.size(); }
-int QuoteModel::columnCount(const QModelIndex&) const { return 10; }
+int QuoteModel::columnCount(const QModelIndex&) const { return 11; }
 
 QVariant QuoteModel::headerData(int section, Qt::Orientation o, int role) const
 {
@@ -18,10 +18,11 @@ QVariant QuoteModel::headerData(int section, Qt::Orientation o, int role) const
         case 3: return "市盈率(PE)";
         case 4: return "市场";
         case 5: return "现价";
-        case 6: return "MA5(近收)";
-        case 7: return "偏离(%)";
-        case 8: return "N(收<MA5)";
-        case 9: return "K线";
+        case 6: return "MA周期";
+        case 7: return "MA值(近收)";
+        case 8: return "偏离(%)";
+        case 9: return "N(收<MA)";
+        case 10: return "K线";
         default: return {};
         }
     }
@@ -41,10 +42,11 @@ QVariant QuoteModel::data(const QModelIndex& idx, int role) const
         case 3: return QString::number(r.pe, 'f', 2);
         case 4: return r.market;
         case 5: return QString::number(r.last, 'f', 3);
-        case 6: return QString::number(r.ma5, 'f', 3);
-        case 7: return QString::number(r.biasPct, 'f', 2);
-        case 8: return r.belowDays;
-        case 9: return "查看";
+        case 6: return r.maPeriod;
+        case 7: return QString::number(r.maValue, 'f', 3);
+        case 8: return QString::number(r.biasPct, 'f', 2);
+        case 9: return r.belowDays;
+        case 10: return "查看";
         default: return {};
         }
     }
@@ -72,10 +74,11 @@ void QuoteModel::sort(int column, Qt::SortOrder order)
         case 3: return less(a.pe, b.pe);
         case 4: return less(a.market, b.market);
         case 5: return less(a.last, b.last);
-        case 6: return less(a.ma5, b.ma5);
-        case 7: return less(a.biasPct, b.biasPct);
-        case 8: return less(a.belowDays, b.belowDays);
-        case 9: return false;
+        case 6: return less(a.maPeriod, b.maPeriod);
+        case 7: return less(a.maValue, b.maValue);
+        case 8: return less(a.biasPct, b.biasPct);
+        case 9: return less(a.belowDays, b.belowDays);
+        case 10: return false;
         default: return false;
         }
     });

@@ -28,7 +28,7 @@ MainWindow::MainWindow(QWidget *parent)
     ui->tableView->setModel(m_model);
     ui->tableView->setSortingEnabled(true);
     auto* klineDelegate = new KlineButtonDelegate(this);
-    ui->tableView->setItemDelegateForColumn(9, klineDelegate);
+    ui->tableView->setItemDelegateForColumn(10, klineDelegate);
     ui->progressBar->setRange(0, 100);
     ui->progressBar->setValue(0);
     ui->listMenu->setCurrentRow(0);
@@ -53,6 +53,7 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->btnScan, &QPushButton::clicked, this, [this](){
         ScanConfig cfg;
         cfg.belowDays = ui->spinBelowDays->value();
+        cfg.maPeriod = ui->comboMaPeriod->currentText().toInt();
         cfg.includeBJ = ui->cbIncludeBJ->isChecked();
 //        cfg.excludeST = ui->cbExcludeST->isChecked();
         cfg.pageSize = ui->spinPageSize->value();
@@ -87,10 +88,11 @@ MainWindow::MainWindow(QWidget *parent)
             return;
         }
         QTextStream ts(&f);
-        ts << "code,name,sector,pe,market,last,ma5,biasPct,belowDays\n";
+        ts << "code,name,sector,pe,market,last,maPeriod,maValue,biasPct,belowDays\n";
         for (const auto& r : m_model->rows()) {
             ts << r.code << "," << r.name << "," << r.sector << "," << r.pe << ","
-               << r.market << "," << r.last << "," << r.ma5 << "," << r.biasPct << "," << r.belowDays << "\n";
+               << r.market << "," << r.last << "," << r.maPeriod << "," << r.maValue << ","
+               << r.biasPct << "," << r.belowDays << "\n";
         }
         f.close();
         QMessageBox::information(this, "导出", "导出完成");

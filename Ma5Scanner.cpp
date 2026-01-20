@@ -135,7 +135,7 @@ void Ma5Scanner::fetchSpotPage(int pn)
         if (total > 0) m_spotTotal = total;
 
         if (page.isEmpty()) {
-            emit stageChanged(QString("列表完成：%1 只，开始计算 MA5 / 条件筛选...").arg(m_spots.size()));
+            emit stageChanged(QString("列表完成：%1 只，开始计算 MA / 条件筛选...").arg(m_spots.size()));
             startKlineQueue();
             return;
         }
@@ -213,17 +213,17 @@ void Ma5Scanner::pumpKline()
         QVector<QString> dates;
         QVector<double> closes;
         const QString secid = secidFor(s);
-        const int need = m_cfg.belowDays + 6;
+        const int need = m_cfg.belowDays + m_cfg.maPeriod + 1;
 
         if (cacheGet(secid, dates, closes) && closes.size() >= need) {
             KlineStats st;
-            if (computeStatsFromBars(dates, closes, m_cfg.belowDays, st) && st.ok) {
-                if (s.last > st.ma5Last && st.lastNDaysCloseBelowMA5) {
+            if (computeStatsFromBars(dates, closes, m_cfg.maPeriod, m_cfg.belowDays, st) && st.ok) {
+                if (s.last > st.maLast && st.lastNDaysCloseBelowMA) {
                     PickRow r;
                     r.code = s.code; r.name = s.name; r.market = s.market;
                     r.sector = s.sector; r.pe = s.pe;
-                    r.last = s.last; r.ma5 = st.ma5Last;
-                    r.biasPct = (r.last / r.ma5 - 1.0) * 100.0;
+                    r.last = s.last; r.maPeriod = m_cfg.maPeriod; r.maValue = st.maLast;
+                    r.biasPct = (r.last / r.maValue - 1.0) * 100.0;
                     r.belowDays = m_cfg.belowDays;
                     m_results.push_back(r);
                 }
@@ -290,7 +290,7 @@ void Ma5Scanner::sendKlineTask(Task t)
     const int marketUsed = t.marketTryList.value(t.marketTryIndex, t.s.market);
     t.secidUsed = secidFor(t.s, marketUsed);
 
-    const int needLmt = qMax(40, m_cfg.belowDays + 15);
+    const int needLmt = qMax(80, m_cfg.belowDays + m_cfg.maPeriod + 15);
 
     QUrl url("https://push2his.eastmoney.com/api/qt/stock/kline/get");
     QUrlQuery q;
@@ -367,13 +367,13 @@ void Ma5Scanner::sendKlineTask(Task t)
         cachePut(t.secidUsed, dates, closes);
 
         KlineStats st;
-        if (computeStatsFromBars(dates, closes, m_cfg.belowDays, st) && st.ok) {
-            if (t.s.last > st.ma5Last && st.lastNDaysCloseBelowMA5) {
+        if (computeStatsFromBars(dates, closes, m_cfg.maPeriod, m_cfg.belowDays, st) && st.ok) {
+            if (t.s.last > st.maLast && st.lastNDaysCloseBelowMA) {
                 PickRow r;
                 r.code = t.s.code; r.name = t.s.name; r.market = t.s.market;
                 r.sector = t.s.sector; r.pe = t.s.pe;
-                r.last = t.s.last; r.ma5 = st.ma5Last;
-                r.biasPct = (r.last / r.ma5 - 1.0) * 100.0;
+                r.last = t.s.last; r.maPeriod = m_cfg.maPeriod; r.maValue = st.maLast;
+                r.biasPct = (r.last / r.maValue - 1.0) * 100.0;
                 r.belowDays = m_cfg.belowDays;
                 m_results.push_back(r);
             }
@@ -417,11 +417,11 @@ bool Ma5Scanner::parseKlineBars(const QByteArray& body, QVector<QString>& dates,
     return closes.size() >= 6;
 }
 
-bool Ma5Scanner::computeStatsFromBars(const QVector<QString>& dates, const QVector<double>& closes, int belowDays, KlineStats& out)
+bool Ma5Scanner::computeStatsFromBars(const QVector<QString>& dates, const QVector<double>& closes, int maPeriod, int belowDays, KlineStats& out)
 {
     out = KlineStats{};
     if (dates.size() != closes.size()) return false;
-    if (closes.size() < belowDays + 5) return false;
+    if (closes.size() < belowDays + maPeriod) return false;
 
     QVector<QString> d = dates;
     QVector<double>  c = closes;
@@ -433,25 +433,26 @@ bool Ma5Scanner::computeStatsFromBars(const QVector<QString>& dates, const QVect
     }
 
     const int n = c.size();
-    if (n < belowDays + 5) return false;
+    if (n < belowDays + maPeriod) return false;
 
-    auto ma5At = [&](int idx)->double {
+    auto maAt = [&](int idx)->double {
         double sum = 0;
-        for (int j = idx - 4; j <= idx; ++j) sum += c[j];
-        return sum / 5.0;
+        const int start = idx - (maPeriod - 1);
+        for (int j = start; j <= idx; ++j) sum += c[j];
+        return sum / static_cast<double>(maPeriod);
     };
 
-    out.ma5Last = ma5At(n - 1);
+    out.maLast = maAt(n - 1);
 
     bool allBelow = true;
     for (int idx = n - belowDays; idx <= n - 1; ++idx) {
-        if (idx < 4) { allBelow = false; break; }
-        const double ma = ma5At(idx);
+        if (idx < (maPeriod - 1)) { allBelow = false; break; }
+        const double ma = maAt(idx);
         if (!(c[idx] < ma)) { allBelow = false; break; }
     }
 
     out.ok = true;
-    out.lastNDaysCloseBelowMA5 = allBelow;
+    out.lastNDaysCloseBelowMA = allBelow;
     return true;
 }
 

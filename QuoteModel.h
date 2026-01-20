@@ -11,8 +11,9 @@ struct PickRow
     double pe = 0;
     int market = 0;      // f13
     double last = 0;     // 现价（快照）
-    double ma5 = 0;      // 最近已收盘日 MA5（rolling）
-    double biasPct = 0;  // (last/ma5-1)*100
+    int maPeriod = 0;    // 均线周期
+    double maValue = 0;  // 最近已收盘日 MA（rolling）
+    double biasPct = 0;  // (last/ma-1)*100
     int belowDays = 0;   // 你输入的 N
 };
 
