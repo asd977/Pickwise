@@ -1,5 +1,5 @@
 ﻿#pragma once
-#include "QuoteModel.h"
+#include "PullbackModel.h"
 
 #include <QObject>
 #include <QVector>
@@ -10,7 +10,7 @@
 class QNetworkAccessManager;
 class QNetworkReply;
 
-struct Spot {
+struct PullbackSpot {
     QString code;
     QString name;
     QString sector;
@@ -19,8 +19,9 @@ struct Spot {
     double last = 0;    // f2
 };
 
-struct ScanConfig {
+struct PullbackScanConfig {
     int belowDays = 3;
+    int maPeriod = 5;
     bool includeBJ = true;
     int pageSize = 200;
     int maxInFlight = 12;
@@ -30,83 +31,77 @@ struct ScanConfig {
     bool sortDesc = true;
 };
 
-struct KlineStats {
+struct PullbackKlineStats {
     bool ok = false;
-    double ma5Last = 0;
-    bool lastNDaysCloseBelowMA5 = false;
+    double maLast = 0;
+    bool lastNDaysCloseBelowMA = false;
 };
 
-class Ma5Scanner : public QObject
+class MaPullbackScanner : public QObject
 {
     Q_OBJECT
 public:
-    explicit Ma5Scanner(QObject* parent=nullptr);
+    explicit MaPullbackScanner(QObject* parent=nullptr);
 
-    void runOnce(const ScanConfig& cfg);
+    void runOnce(const PullbackScanConfig& cfg);
     void cancel();
 
 signals:
     void stageChanged(const QString& text);
     void progress(int done, int total);
-    void finished(QVector<PickRow> rows);
+    void finished(QVector<PullbackRow> rows);
     void failed(const QString& reason);
     void cancelled();
 
 private:
-    // step1: fetch all spots
     void fetchSpotPage(int pn);
-    bool parseSpotPage(const QByteArray& body, QVector<Spot>& outPage, int* totalOut);
+    bool parseSpotPage(const QByteArray& body, QVector<PullbackSpot>& outPage, int* totalOut);
 
-    // step2: kline queue
     void startKlineQueue();
     void pumpKline();
 
-    // kline task
     struct Task {
-        Spot s;
+        PullbackSpot s;
         int retry = 0;
         QList<int> marketTryList;
         int marketTryIndex = 0;
-        QString secidUsed; // 本次请求实际用的 secid
+        QString secidUsed;
     };
 
-    void requestKlineInitial(const Spot& s);   // 入队用：创建 Task
-    void sendKlineTask(Task t);                // 真正发请求：保持 Task 状态续跑
+    void requestKlineInitial(const PullbackSpot& s);
+    void sendKlineTask(Task t);
 
     static QByteArray normalizeJsonMaybeJsonp(const QByteArray& body);
     static bool parseKlineBars(const QByteArray& body, QVector<QString>& dates, QVector<double>& closes);
-    static bool computeStatsFromBars(const QVector<QString>& dates, const QVector<double>& closes, int belowDays, KlineStats& out);
+    static bool computeStatsFromBars(const QVector<QString>& dates, const QVector<double>& closes, int maPeriod, int belowDays, PullbackKlineStats& out);
 
-    // cache
     void loadCache();
     void saveCache();
     QString cachePath() const;
     bool cacheGet(const QString& secid, QVector<QString>& dates, QVector<double>& closes) const;
     void cachePut(const QString& secid, const QVector<QString>& dates, const QVector<double>& closes);
 
-    // secid helpers
-    QString secidFor(const Spot& s, int marketOverride = -1) const;
-    QList<int> fallbackMarketsFor(const Spot& s) const;
+    QString secidFor(const PullbackSpot& s, int marketOverride = -1) const;
+    QList<int> fallbackMarketsFor(const PullbackSpot& s) const;
 
 private:
     QNetworkAccessManager* m_nam = nullptr;
 
-    ScanConfig m_cfg;
+    PullbackScanConfig m_cfg;
     bool m_cancelled = false;
     bool m_cancelSignalSent = false;
 
-    QVector<Spot> m_spots;
+    QVector<PullbackSpot> m_spots;
     int m_spotTotal = 0;
 
-    QQueue<Spot> m_queue;
-    int m_totalToDo = 0;   // 固定总数
+    QQueue<PullbackSpot> m_queue;
+    int m_totalToDo = 0;
     int m_done = 0;
     int m_inFlight = 0;
 
     QHash<QNetworkReply*, Task> m_tasks;
-    QVector<PickRow> m_results;
+    QVector<PullbackRow> m_results;
 
-    // file cache: secid -> bars
     QDate m_cacheDate;
     struct CacheItem { QVector<QString> dates; QVector<double> closes; };
     QHash<QString, CacheItem> m_cache;

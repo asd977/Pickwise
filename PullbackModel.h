@@ -3,7 +3,7 @@
 #include <QVector>
 #include <QString>
 
-struct PickRow
+struct PullbackRow
 {
     QString code;
     QString name;
@@ -11,16 +11,17 @@ struct PickRow
     double pe = 0;
     int market = 0;      // f13
     double last = 0;     // 现价（快照）
-    double ma5 = 0;      // 最近已收盘日 MA5（rolling）
-    double biasPct = 0;  // (last/ma5-1)*100
+    int maPeriod = 0;    // 均线周期
+    double maValue = 0;  // 最近已收盘日 MA（rolling）
+    double biasPct = 0;  // (last/ma-1)*100
     int belowDays = 0;   // 你输入的 N
 };
 
-class QuoteModel : public QAbstractTableModel
+class PullbackModel : public QAbstractTableModel
 {
     Q_OBJECT
 public:
-    explicit QuoteModel(QObject* parent=nullptr);
+    explicit PullbackModel(QObject* parent=nullptr);
 
     int rowCount(const QModelIndex& parent = QModelIndex()) const override;
     int columnCount(const QModelIndex& parent = QModelIndex()) const override;
@@ -28,11 +29,11 @@ public:
     QVariant headerData(int section, Qt::Orientation orientation, int role) const override;
     void sort(int column, Qt::SortOrder order) override;
 
-    void setRows(const QVector<PickRow>& rows);
-    const QVector<PickRow>& rows() const { return m_rows; }
+    void setRows(const QVector<PullbackRow>& rows);
+    const QVector<PullbackRow>& rows() const { return m_rows; }
 
 private:
-    QVector<PickRow> m_rows;
+    QVector<PullbackRow> m_rows;
     int m_sortColumn = -1;
     Qt::SortOrder m_sortOrder = Qt::DescendingOrder;
 };

@@ -2,7 +2,9 @@
 
 #include <QMainWindow>
 #include "Ma5Scanner.h"
+#include "MaPullbackScanner.h"
 #include "QuoteModel.h"
+#include "PullbackModel.h"
 
 class BacktestWidget;
 
@@ -19,10 +21,13 @@ public:
 
 private:
     void setUiBusy(bool busy);
+    void setPullbackUiBusy(bool busy);
 
 private:
     Ui::MainWindow *ui;
     Ma5Scanner* m_scanner = nullptr;
     QuoteModel* m_model = nullptr;
+    MaPullbackScanner* m_pullbackScanner = nullptr;
+    PullbackModel* m_pullbackModel = nullptr;
     BacktestWidget* m_backtestWidget = nullptr;
 };

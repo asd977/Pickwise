@@ -1,13 +1,12 @@
-﻿#include "QuoteModel.h"
+﻿#include "PullbackModel.h"
 #include <algorithm>
-#include <QtMath>
 
-QuoteModel::QuoteModel(QObject* parent) : QAbstractTableModel(parent) {}
+PullbackModel::PullbackModel(QObject* parent) : QAbstractTableModel(parent) {}
 
-int QuoteModel::rowCount(const QModelIndex&) const { return m_rows.size(); }
-int QuoteModel::columnCount(const QModelIndex&) const { return 10; }
+int PullbackModel::rowCount(const QModelIndex&) const { return m_rows.size(); }
+int PullbackModel::columnCount(const QModelIndex&) const { return 11; }
 
-QVariant QuoteModel::headerData(int section, Qt::Orientation o, int role) const
+QVariant PullbackModel::headerData(int section, Qt::Orientation o, int role) const
 {
     if (role != Qt::DisplayRole) return {};
     if (o == Qt::Horizontal) {
@@ -18,17 +17,18 @@ QVariant QuoteModel::headerData(int section, Qt::Orientation o, int role) const
         case 3: return "市盈率(PE)";
         case 4: return "市场";
         case 5: return "现价";
-        case 6: return "MA5(近收)";
-        case 7: return "偏离(%)";
-        case 8: return "N(收<MA5)";
-        case 9: return "K线";
+        case 6: return "MA周期";
+        case 7: return "MA值(近收)";
+        case 8: return "偏离(%)";
+        case 9: return "N(收<MA)";
+        case 10: return "K线";
         default: return {};
         }
     }
     return section + 1;
 }
 
-QVariant QuoteModel::data(const QModelIndex& idx, int role) const
+QVariant PullbackModel::data(const QModelIndex& idx, int role) const
 {
     if (!idx.isValid() || idx.row() < 0 || idx.row() >= m_rows.size()) return {};
     const auto& r = m_rows[idx.row()];
@@ -41,29 +41,30 @@ QVariant QuoteModel::data(const QModelIndex& idx, int role) const
         case 3: return QString::number(r.pe, 'f', 2);
         case 4: return r.market;
         case 5: return QString::number(r.last, 'f', 3);
-        case 6: return QString::number(r.ma5, 'f', 3);
-        case 7: return QString::number(r.biasPct, 'f', 2);
-        case 8: return r.belowDays;
-        case 9: return "查看";
+        case 6: return r.maPeriod;
+        case 7: return QString::number(r.maValue, 'f', 3);
+        case 8: return QString::number(r.biasPct, 'f', 2);
+        case 9: return r.belowDays;
+        case 10: return "查看";
         default: return {};
         }
     }
     return {};
 }
 
-void QuoteModel::setRows(const QVector<PickRow>& rows)
+void PullbackModel::setRows(const QVector<PullbackRow>& rows)
 {
     beginResetModel();
     m_rows = rows;
     endResetModel();
 }
 
-void QuoteModel::sort(int column, Qt::SortOrder order)
+void PullbackModel::sort(int column, Qt::SortOrder order)
 {
     m_sortColumn = column;
     m_sortOrder = order;
 
-    std::sort(m_rows.begin(), m_rows.end(), [&](const PickRow& a, const PickRow& b){
+    std::sort(m_rows.begin(), m_rows.end(), [&](const PullbackRow& a, const PullbackRow& b){
         auto less = [&](auto x, auto y){ return (order == Qt::AscendingOrder) ? (x < y) : (x > y); };
         switch (column) {
         case 0: return less(a.code, b.code);
@@ -72,10 +73,11 @@ void QuoteModel::sort(int column, Qt::SortOrder order)
         case 3: return less(a.pe, b.pe);
         case 4: return less(a.market, b.market);
         case 5: return less(a.last, b.last);
-        case 6: return less(a.ma5, b.ma5);
-        case 7: return less(a.biasPct, b.biasPct);
-        case 8: return less(a.belowDays, b.belowDays);
-        case 9: return false;
+        case 6: return less(a.maPeriod, b.maPeriod);
+        case 7: return less(a.maValue, b.maValue);
+        case 8: return less(a.biasPct, b.biasPct);
+        case 9: return less(a.belowDays, b.belowDays);
+        case 10: return false;
         default: return false;
         }
     });

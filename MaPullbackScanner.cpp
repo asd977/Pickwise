@@ -1,5 +1,4 @@
-﻿#include "Ma5Scanner.h"
-#include "QuoteModel.h"
+﻿#include "MaPullbackScanner.h"
 
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
@@ -28,15 +27,14 @@ static void FillCommonHeaders(QNetworkRequest& req) {
 }
 }
 
-Ma5Scanner::Ma5Scanner(QObject* parent) : QObject(parent)
+MaPullbackScanner::MaPullbackScanner(QObject* parent) : QObject(parent)
 {
     m_nam = new QNetworkAccessManager(this);
     loadCache();
 }
 
-void Ma5Scanner::runOnce(const ScanConfig& cfg)
+void MaPullbackScanner::runOnce(const PullbackScanConfig& cfg)
 {
-    // 先安全取消上次（不清reply回调，靠 m_cancelled 兜住）
     cancel();
 
     m_cfg = cfg;
@@ -59,14 +57,11 @@ void Ma5Scanner::runOnce(const ScanConfig& cfg)
     fetchSpotPage(1);
 }
 
-void Ma5Scanner::cancel()
+void MaPullbackScanner::cancel()
 {
     m_cancelled = true;
-
-    // 清队列：不再发新请求
     m_queue.clear();
 
-    // abort 正在进行的请求，但不要清 m_tasks / 不要手动改 m_inFlight
     for (auto it = m_tasks.begin(); it != m_tasks.end(); ++it) {
         if (it.key()) it.key()->abort();
     }
@@ -78,7 +73,7 @@ void Ma5Scanner::cancel()
     }
 }
 
-QByteArray Ma5Scanner::normalizeJsonMaybeJsonp(const QByteArray& body)
+QByteArray MaPullbackScanner::normalizeJsonMaybeJsonp(const QByteArray& body)
 {
     int l = body.indexOf('{');
     int r = body.lastIndexOf('}');
@@ -86,8 +81,7 @@ QByteArray Ma5Scanner::normalizeJsonMaybeJsonp(const QByteArray& body)
     return body;
 }
 
-// ------------------- spot list -------------------
-void Ma5Scanner::fetchSpotPage(int pn)
+void MaPullbackScanner::fetchSpotPage(int pn)
 {
     if (m_cancelled) return;
 
@@ -126,7 +120,7 @@ void Ma5Scanner::fetchSpotPage(int pn)
             return;
         }
 
-        QVector<Spot> page;
+        QVector<PullbackSpot> page;
         int total = 0;
         if (!parseSpotPage(normalizeJsonMaybeJsonp(raw), page, &total)) {
             emit failed(QString("解析列表失败。响应前200字：%1").arg(QString::fromUtf8(raw.left(200))));
@@ -135,7 +129,8 @@ void Ma5Scanner::fetchSpotPage(int pn)
         if (total > 0) m_spotTotal = total;
 
         if (page.isEmpty()) {
-            emit stageChanged(QString("列表完成：%1 只，开始计算 MA5 / 条件筛选...").arg(m_spots.size()));
+            emit stageChanged(QString("列表完成：%1 只，开始计算回踩 MA%2 / 条件筛选...")
+                                  .arg(m_spots.size()).arg(m_cfg.maPeriod));
             startKlineQueue();
             return;
         }
@@ -147,7 +142,7 @@ void Ma5Scanner::fetchSpotPage(int pn)
     });
 }
 
-bool Ma5Scanner::parseSpotPage(const QByteArray& body, QVector<Spot>& outPage, int* totalOut)
+bool MaPullbackScanner::parseSpotPage(const QByteArray& body, QVector<PullbackSpot>& outPage, int* totalOut)
 {
     auto doc = QJsonDocument::fromJson(body);
     if (!doc.isObject()) return false;
@@ -160,7 +155,7 @@ bool Ma5Scanner::parseSpotPage(const QByteArray& body, QVector<Spot>& outPage, i
     if (diffVal.isUndefined() || diffVal.isNull()) return true;
 
     auto handle = [&](const QJsonObject& o){
-        Spot s;
+        PullbackSpot s;
         s.code   = o.value("f12").toString();
         s.name   = o.value("f14").toString();
         s.last   = o.value("f2").toDouble();
@@ -181,8 +176,7 @@ bool Ma5Scanner::parseSpotPage(const QByteArray& body, QVector<Spot>& outPage, i
     return true;
 }
 
-// ------------------- scan queue -------------------
-void Ma5Scanner::startKlineQueue()
+void MaPullbackScanner::startKlineQueue()
 {
     if (m_cancelled) return;
 
@@ -196,34 +190,33 @@ void Ma5Scanner::startKlineQueue()
     }
 
     m_done = 0;
-    m_totalToDo = m_queue.size();              // ✅ 固定总数
+    m_totalToDo = m_queue.size();
     emit progress(0, m_totalToDo);
 
     pumpKline();
 }
 
-void Ma5Scanner::pumpKline()
+void MaPullbackScanner::pumpKline()
 {
     if (m_cancelled) return;
 
     while (m_inFlight < m_cfg.maxInFlight && !m_queue.isEmpty()) {
-        const Spot s = m_queue.dequeue();
+        const PullbackSpot s = m_queue.dequeue();
 
-        // cache 命中：直接算
         QVector<QString> dates;
         QVector<double> closes;
         const QString secid = secidFor(s);
-        const int need = m_cfg.belowDays + 6;
+        const int need = m_cfg.belowDays + m_cfg.maPeriod + 1;
 
         if (cacheGet(secid, dates, closes) && closes.size() >= need) {
-            KlineStats st;
-            if (computeStatsFromBars(dates, closes, m_cfg.belowDays, st) && st.ok) {
-                if (s.last > st.ma5Last && st.lastNDaysCloseBelowMA5) {
-                    PickRow r;
+            PullbackKlineStats st;
+            if (computeStatsFromBars(dates, closes, m_cfg.maPeriod, m_cfg.belowDays, st) && st.ok) {
+                if (s.last > st.maLast && st.lastNDaysCloseBelowMA) {
+                    PullbackRow r;
                     r.code = s.code; r.name = s.name; r.market = s.market;
                     r.sector = s.sector; r.pe = s.pe;
-                    r.last = s.last; r.ma5 = st.ma5Last;
-                    r.biasPct = (r.last / r.ma5 - 1.0) * 100.0;
+                    r.last = s.last; r.maPeriod = m_cfg.maPeriod; r.maValue = st.maLast;
+                    r.biasPct = (r.last / r.maValue - 1.0) * 100.0;
                     r.belowDays = m_cfg.belowDays;
                     m_results.push_back(r);
                 }
@@ -233,20 +226,18 @@ void Ma5Scanner::pumpKline()
             continue;
         }
 
-        // 发起网络任务
         requestKlineInitial(s);
     }
 
-    // ✅ 只有当队列空 + 无在途，才完成
     if (!m_cancelled && m_inFlight == 0 && m_queue.isEmpty()) {
-        auto key = [&](const PickRow& r){
+        auto key = [&](const PullbackRow& r){
             switch (m_cfg.sortField) {
             case 1: return std::abs(r.biasPct);
             case 2: return r.pe;
             default: return r.biasPct;
             }
         };
-        std::sort(m_results.begin(), m_results.end(), [&](const PickRow& a, const PickRow& b){
+        std::sort(m_results.begin(), m_results.end(), [&](const PullbackRow& a, const PullbackRow& b){
             return m_cfg.sortDesc ? (key(a) > key(b)) : (key(a) < key(b));
         });
 
@@ -256,14 +247,13 @@ void Ma5Scanner::pumpKline()
     }
 }
 
-// ------------------- kline task (fixed retry logic) -------------------
-QString Ma5Scanner::secidFor(const Spot& s, int marketOverride) const
+QString MaPullbackScanner::secidFor(const PullbackSpot& s, int marketOverride) const
 {
     const int m = (marketOverride >= 0) ? marketOverride : s.market;
     return QString("%1.%2").arg(m).arg(s.code);
 }
 
-QList<int> Ma5Scanner::fallbackMarketsFor(const Spot& s) const
+QList<int> MaPullbackScanner::fallbackMarketsFor(const PullbackSpot& s) const
 {
     QList<int> ms;
     ms << s.market;
@@ -273,7 +263,7 @@ QList<int> Ma5Scanner::fallbackMarketsFor(const Spot& s) const
     return ms;
 }
 
-void Ma5Scanner::requestKlineInitial(const Spot& s)
+void MaPullbackScanner::requestKlineInitial(const PullbackSpot& s)
 {
     Task t;
     t.s = s;
@@ -283,14 +273,14 @@ void Ma5Scanner::requestKlineInitial(const Spot& s)
     sendKlineTask(t);
 }
 
-void Ma5Scanner::sendKlineTask(Task t)
+void MaPullbackScanner::sendKlineTask(Task t)
 {
     if (m_cancelled) return;
 
     const int marketUsed = t.marketTryList.value(t.marketTryIndex, t.s.market);
     t.secidUsed = secidFor(t.s, marketUsed);
 
-    const int needLmt = qMax(40, m_cfg.belowDays + 15);
+    const int needLmt = qMax(80, m_cfg.belowDays + m_cfg.maPeriod + 15);
 
     QUrl url("https://push2his.eastmoney.com/api/qt/stock/kline/get");
     QUrlQuery q;
@@ -318,14 +308,13 @@ void Ma5Scanner::sendKlineTask(Task t)
     });
 
     connect(reply, &QNetworkReply::finished, this, [this, reply]() {
-        Task t = m_tasks.take(reply); // 保留 task 状态
+        Task t = m_tasks.take(reply);
         const QByteArray raw = reply->readAll();
         const auto err = reply->error();
         reply->deleteLater();
 
         if (m_inFlight > 0) --m_inFlight;
 
-        // 取消后：不再做任何统计/续跑（避免崩）
         if (m_cancelled) {
             return;
         }
@@ -335,10 +324,8 @@ void Ma5Scanner::sendKlineTask(Task t)
         bool okBars = (err == QNetworkReply::NoError) && parseKlineBars(normalizeJsonMaybeJsonp(raw), dates, closes);
 
         if (!okBars) {
-            // ✅ 失败：优先换 market；都试过再按 retry 次数重试
             if (t.marketTryIndex + 1 < t.marketTryList.size()) {
                 ++t.marketTryIndex;
-                // 不算 done，继续发
                 sendKlineTask(t);
                 pumpKline();
                 return;
@@ -351,14 +338,12 @@ void Ma5Scanner::sendKlineTask(Task t)
                 return;
             }
 
-            // ✅ 最终放弃：现在才算 done
             ++m_done;
             emit progress(m_done, m_totalToDo);
             pumpKline();
             return;
         }
 
-        // 成功：写缓存
         if (dates.size() > 80) {
             const int drop = dates.size() - 80;
             dates = dates.mid(drop);
@@ -366,27 +351,26 @@ void Ma5Scanner::sendKlineTask(Task t)
         }
         cachePut(t.secidUsed, dates, closes);
 
-        KlineStats st;
-        if (computeStatsFromBars(dates, closes, m_cfg.belowDays, st) && st.ok) {
-            if (t.s.last > st.ma5Last && st.lastNDaysCloseBelowMA5) {
-                PickRow r;
+        PullbackKlineStats st;
+        if (computeStatsFromBars(dates, closes, m_cfg.maPeriod, m_cfg.belowDays, st) && st.ok) {
+            if (t.s.last > st.maLast && st.lastNDaysCloseBelowMA) {
+                PullbackRow r;
                 r.code = t.s.code; r.name = t.s.name; r.market = t.s.market;
                 r.sector = t.s.sector; r.pe = t.s.pe;
-                r.last = t.s.last; r.ma5 = st.ma5Last;
-                r.biasPct = (r.last / r.ma5 - 1.0) * 100.0;
+                r.last = t.s.last; r.maPeriod = m_cfg.maPeriod; r.maValue = st.maLast;
+                r.biasPct = (r.last / r.maValue - 1.0) * 100.0;
                 r.belowDays = m_cfg.belowDays;
                 m_results.push_back(r);
             }
         }
 
-        // ✅ 成功：算 done 一次
         ++m_done;
         emit progress(m_done, m_totalToDo);
         pumpKline();
     });
 }
 
-bool Ma5Scanner::parseKlineBars(const QByteArray& body, QVector<QString>& dates, QVector<double>& closes)
+bool MaPullbackScanner::parseKlineBars(const QByteArray& body, QVector<QString>& dates, QVector<double>& closes)
 {
     auto doc = QJsonDocument::fromJson(body);
     if (!doc.isObject()) return false;
@@ -417,11 +401,11 @@ bool Ma5Scanner::parseKlineBars(const QByteArray& body, QVector<QString>& dates,
     return closes.size() >= 6;
 }
 
-bool Ma5Scanner::computeStatsFromBars(const QVector<QString>& dates, const QVector<double>& closes, int belowDays, KlineStats& out)
+bool MaPullbackScanner::computeStatsFromBars(const QVector<QString>& dates, const QVector<double>& closes, int maPeriod, int belowDays, PullbackKlineStats& out)
 {
-    out = KlineStats{};
+    out = PullbackKlineStats{};
     if (dates.size() != closes.size()) return false;
-    if (closes.size() < belowDays + 5) return false;
+    if (closes.size() < belowDays + maPeriod) return false;
 
     QVector<QString> d = dates;
     QVector<double>  c = closes;
@@ -433,37 +417,37 @@ bool Ma5Scanner::computeStatsFromBars(const QVector<QString>& dates, const QVect
     }
 
     const int n = c.size();
-    if (n < belowDays + 5) return false;
+    if (n < belowDays + maPeriod) return false;
 
-    auto ma5At = [&](int idx)->double {
+    auto maAt = [&](int idx)->double {
         double sum = 0;
-        for (int j = idx - 4; j <= idx; ++j) sum += c[j];
-        return sum / 5.0;
+        const int start = idx - (maPeriod - 1);
+        for (int j = start; j <= idx; ++j) sum += c[j];
+        return sum / static_cast<double>(maPeriod);
     };
 
-    out.ma5Last = ma5At(n - 1);
+    out.maLast = maAt(n - 1);
 
     bool allBelow = true;
     for (int idx = n - belowDays; idx <= n - 1; ++idx) {
-        if (idx < 4) { allBelow = false; break; }
-        const double ma = ma5At(idx);
+        if (idx < (maPeriod - 1)) { allBelow = false; break; }
+        const double ma = maAt(idx);
         if (!(c[idx] < ma)) { allBelow = false; break; }
     }
 
     out.ok = true;
-    out.lastNDaysCloseBelowMA5 = allBelow;
+    out.lastNDaysCloseBelowMA = allBelow;
     return true;
 }
 
-// ------------------- cache -------------------
-QString Ma5Scanner::cachePath() const
+QString MaPullbackScanner::cachePath() const
 {
     const QString dir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
     QDir().mkpath(dir);
-    return dir + "/kline_cache.json";
+    return dir + "/kline_cache_pullback.json";
 }
 
-void Ma5Scanner::loadCache()
+void MaPullbackScanner::loadCache()
 {
     const QString path = cachePath();
     QFile f(path);
@@ -496,7 +480,7 @@ void Ma5Scanner::loadCache()
     }
 }
 
-void Ma5Scanner::saveCache()
+void MaPullbackScanner::saveCache()
 {
     m_cacheDate = QDate::currentDate();
 
@@ -522,7 +506,7 @@ void Ma5Scanner::saveCache()
     f.commit();
 }
 
-bool Ma5Scanner::cacheGet(const QString& secid, QVector<QString>& dates, QVector<double>& closes) const
+bool MaPullbackScanner::cacheGet(const QString& secid, QVector<QString>& dates, QVector<double>& closes) const
 {
     if (!m_cacheDate.isValid() || m_cacheDate != QDate::currentDate()) return false;
 
@@ -534,7 +518,7 @@ bool Ma5Scanner::cacheGet(const QString& secid, QVector<QString>& dates, QVector
     return !closes.isEmpty() && dates.size() == closes.size();
 }
 
-void Ma5Scanner::cachePut(const QString& secid, const QVector<QString>& dates, const QVector<double>& closes)
+void MaPullbackScanner::cachePut(const QString& secid, const QVector<QString>& dates, const QVector<double>& closes)
 {
     CacheItem ci;
     ci.dates = dates;
