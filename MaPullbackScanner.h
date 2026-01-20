@@ -92,6 +92,8 @@ private:
     PullbackScanConfig m_cfg;
     bool m_cancelled = false;
     bool m_cancelSignalSent = false;
+    int m_spotRetry = 0;
+    int m_spotRetryPn = 0;
 
     QVector<PullbackSpot> m_spots;
     int m_spotTotal = 0;

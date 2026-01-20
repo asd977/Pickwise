@@ -40,6 +40,8 @@ void MaPullbackScanner::runOnce(const PullbackScanConfig& cfg)
     m_cfg = cfg;
     m_cancelled = false;
     m_cancelSignalSent = false;
+    m_spotRetry = 0;
+    m_spotRetryPn = 0;
 
     m_spots.clear();
     m_queue.clear();
@@ -116,6 +118,15 @@ void MaPullbackScanner::fetchSpotPage(int pn)
         if (m_cancelled) return;
 
         if (err != QNetworkReply::NoError) {
+            if (m_spotRetryPn != pn) {
+                m_spotRetryPn = pn;
+                m_spotRetry = 0;
+            }
+            if (m_spotRetry < m_cfg.maxRetries) {
+                ++m_spotRetry;
+                QTimer::singleShot(500, this, [this, pn]() { fetchSpotPage(pn); });
+                return;
+            }
             emit failed(QString("拉取列表失败：%1").arg(errStr));
             return;
         }
@@ -123,6 +134,15 @@ void MaPullbackScanner::fetchSpotPage(int pn)
         QVector<PullbackSpot> page;
         int total = 0;
         if (!parseSpotPage(normalizeJsonMaybeJsonp(raw), page, &total)) {
+            if (m_spotRetryPn != pn) {
+                m_spotRetryPn = pn;
+                m_spotRetry = 0;
+            }
+            if (m_spotRetry < m_cfg.maxRetries) {
+                ++m_spotRetry;
+                QTimer::singleShot(500, this, [this, pn]() { fetchSpotPage(pn); });
+                return;
+            }
             emit failed(QString("解析列表失败。响应前200字：%1").arg(QString::fromUtf8(raw.left(200))));
             return;
         }
@@ -135,6 +155,7 @@ void MaPullbackScanner::fetchSpotPage(int pn)
             return;
         }
 
+        m_spotRetry = 0;
         m_spots += page;
         emit progress(m_spots.size(), m_spotTotal > 0 ? m_spotTotal : -1);
 
