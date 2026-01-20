@@ -393,6 +393,27 @@
            </property>
           </widget>
          </item>
+         <item row="1" column="6">
+          <widget class="QLabel" name="labelConditionPullback">
+           <property name="text">
+            <string>条件:</string>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="7">
+          <widget class="QComboBox" name="comboConditionPullback">
+           <item>
+            <property name="text">
+             <string>收盘&lt;MA</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>收盘&gt;MA</string>
+            </property>
+           </item>
+          </widget>
+         </item>
          <item row="2" column="0">
           <widget class="QLabel" name="labelInFlightPullback">
            <property name="text">

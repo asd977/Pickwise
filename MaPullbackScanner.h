@@ -22,6 +22,7 @@ struct PullbackSpot {
 struct PullbackScanConfig {
     int belowDays = 3;
     int maPeriod = 5;
+    int conditionMode = 0; // 0: 收盘<MA, 1: 收盘>MA
     bool includeBJ = true;
     int pageSize = 200;
     int maxInFlight = 12;
@@ -35,6 +36,7 @@ struct PullbackKlineStats {
     bool ok = false;
     double maLast = 0;
     bool lastNDaysCloseBelowMA = false;
+    bool lastNDaysCloseAboveMA = false;
 };
 
 class MaPullbackScanner : public QObject

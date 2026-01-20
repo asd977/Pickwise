@@ -118,6 +118,7 @@ MainWindow::MainWindow(QWidget *parent)
         PullbackScanConfig cfg;
         cfg.belowDays = ui->spinBelowDaysPullback->value();
         cfg.maPeriod = ui->comboMaPeriodPullback->currentText().toInt();
+        cfg.conditionMode = ui->comboConditionPullback->currentIndex();
         cfg.includeBJ = ui->cbIncludeBJPullback->isChecked();
 //        cfg.excludeST = ui->cbExcludeSTPullback->isChecked();
         cfg.pageSize = ui->spinPageSizePullback->value();

@@ -211,7 +211,8 @@ void MaPullbackScanner::pumpKline()
         if (cacheGet(secid, dates, closes) && closes.size() >= need) {
             PullbackKlineStats st;
             if (computeStatsFromBars(dates, closes, m_cfg.maPeriod, m_cfg.belowDays, st) && st.ok) {
-                if (st.lastNDaysCloseBelowMA) {
+                const bool match = (m_cfg.conditionMode == 0) ? st.lastNDaysCloseBelowMA : st.lastNDaysCloseAboveMA;
+                if (match) {
                     PullbackRow r;
                     r.code = s.code; r.name = s.name; r.market = s.market;
                     r.sector = s.sector; r.pe = s.pe;
@@ -353,7 +354,8 @@ void MaPullbackScanner::sendKlineTask(Task t)
 
         PullbackKlineStats st;
         if (computeStatsFromBars(dates, closes, m_cfg.maPeriod, m_cfg.belowDays, st) && st.ok) {
-            if (st.lastNDaysCloseBelowMA) {
+            const bool match = (m_cfg.conditionMode == 0) ? st.lastNDaysCloseBelowMA : st.lastNDaysCloseAboveMA;
+            if (match) {
                 PullbackRow r;
                 r.code = t.s.code; r.name = t.s.name; r.market = t.s.market;
                 r.sector = t.s.sector; r.pe = t.s.pe;
@@ -429,14 +431,18 @@ bool MaPullbackScanner::computeStatsFromBars(const QVector<QString>& dates, cons
     out.maLast = maAt(n - 1);
 
     bool allBelow = true;
+    bool allAbove = true;
     for (int idx = n - belowDays; idx <= n - 1; ++idx) {
         if (idx < (maPeriod - 1)) { allBelow = false; break; }
         const double ma = maAt(idx);
-        if (!(c[idx] < ma)) { allBelow = false; break; }
+        if (!(c[idx] < ma)) { allBelow = false; }
+        if (!(c[idx] > ma)) { allAbove = false; }
+        if (!allBelow && !allAbove) break;
     }
 
     out.ok = true;
     out.lastNDaysCloseBelowMA = allBelow;
+    out.lastNDaysCloseAboveMA = allAbove;
     return true;
 }
 
