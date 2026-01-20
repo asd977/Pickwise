@@ -20,6 +20,8 @@ SOURCES += \
     KlineButtonDelegate.cpp \
     KlineDialog.cpp \
     Ma5Scanner.cpp \
+    MaPullbackScanner.cpp \
+    PullbackModel.cpp \
     QuoteModel.cpp \
     main.cpp \
     mainwindow.cpp
@@ -29,6 +31,8 @@ HEADERS += \
     KlineButtonDelegate.h \
     KlineDialog.h \
     Ma5Scanner.h \
+    MaPullbackScanner.h \
+    PullbackModel.h \
     QuoteModel.h \
     mainwindow.h
 
