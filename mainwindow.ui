@@ -36,6 +36,11 @@
       </item>
       <item>
        <property name="text">
+        <string>MA5回踩</string>
+       </property>
+      </item>
+      <item>
+       <property name="text">
         <string>MACD筛选</string>
        </property>
       </item>
@@ -110,6 +115,13 @@
             </property>
             <property name="checked">
              <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="4">
+           <widget class="QCheckBox" name="cbMa5SlopeUp">
+            <property name="text">
+             <string>MA5斜率为正</string>
             </property>
            </widget>
           </item>
@@ -294,6 +306,257 @@
         </item>
         <item>
          <widget class="QTableView" name="tableView"/>
+        </item>
+       </layout>
+      </widget>
+      <widget class="QWidget" name="pagePullback">
+       <layout class="QVBoxLayout" name="verticalLayoutPullback">
+        <item>
+         <layout class="QGridLayout" name="gridLayoutPullback">
+          <item row="0" column="0">
+           <widget class="QPushButton" name="btnPullbackScan">
+            <property name="text">
+             <string>开始扫描</string>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="1">
+           <widget class="QPushButton" name="btnPullbackCancel">
+            <property name="text">
+             <string>取消</string>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="2">
+           <widget class="QPushButton" name="btnPullbackExport">
+            <property name="text">
+             <string>导出CSV</string>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="0">
+           <widget class="QLabel" name="labelPullbackAboveDays">
+            <property name="text">
+             <string>前N日(收盘&gt;MA5):</string>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="1">
+           <widget class="QSpinBox" name="spinPullbackAboveDays">
+            <property name="minimum">
+             <number>1</number>
+            </property>
+            <property name="maximum">
+             <number>20</number>
+            </property>
+            <property name="value">
+             <number>5</number>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="2">
+           <widget class="QLabel" name="labelPullbackTolerance">
+            <property name="text">
+             <string>回踩容差(%):</string>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="3">
+           <widget class="QDoubleSpinBox" name="spinPullbackTolerance">
+            <property name="decimals">
+             <number>2</number>
+            </property>
+            <property name="minimum">
+             <double>0.00</double>
+            </property>
+            <property name="maximum">
+             <double>10.00</double>
+            </property>
+            <property name="singleStep">
+             <double>0.10</double>
+            </property>
+            <property name="value">
+             <double>1.00</double>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="4">
+           <widget class="QCheckBox" name="cbPullbackSlopeUp">
+            <property name="text">
+             <string>MA5斜率为正</string>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="0">
+           <widget class="QLabel" name="labelPullbackInFlight">
+            <property name="text">
+             <string>并发:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="1">
+           <widget class="QSpinBox" name="spinPullbackInFlight">
+            <property name="minimum">
+             <number>1</number>
+            </property>
+            <property name="maximum">
+             <number>50</number>
+            </property>
+            <property name="value">
+             <number>12</number>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="2">
+           <widget class="QLabel" name="labelPullbackPageSize">
+            <property name="text">
+             <string>分页大小:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="3">
+           <widget class="QSpinBox" name="spinPullbackPageSize">
+            <property name="minimum">
+             <number>100</number>
+            </property>
+            <property name="maximum">
+             <number>1000</number>
+            </property>
+            <property name="singleStep">
+             <number>100</number>
+            </property>
+            <property name="value">
+             <number>500</number>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="4">
+           <widget class="QCheckBox" name="cbPullbackIncludeBJ">
+            <property name="text">
+             <string>包含北交所</string>
+            </property>
+            <property name="checked">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+          <item row="3" column="0">
+           <widget class="QLabel" name="labelPullbackTimeout">
+            <property name="text">
+             <string>超时(ms):</string>
+            </property>
+           </widget>
+          </item>
+          <item row="3" column="1">
+           <widget class="QSpinBox" name="spinPullbackTimeout">
+            <property name="minimum">
+             <number>3000</number>
+            </property>
+            <property name="maximum">
+             <number>60000</number>
+            </property>
+            <property name="singleStep">
+             <number>1000</number>
+            </property>
+            <property name="value">
+             <number>12000</number>
+            </property>
+           </widget>
+          </item>
+          <item row="3" column="2">
+           <widget class="QLabel" name="labelPullbackRetry">
+            <property name="text">
+             <string>重试:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="3" column="3">
+           <widget class="QSpinBox" name="spinPullbackRetry">
+            <property name="minimum">
+             <number>0</number>
+            </property>
+            <property name="maximum">
+             <number>5</number>
+            </property>
+            <property name="value">
+             <number>2</number>
+            </property>
+           </widget>
+          </item>
+          <item row="4" column="0">
+           <widget class="QLabel" name="labelPullbackSortField">
+            <property name="text">
+             <string>排序字段:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="4" column="1">
+           <widget class="QComboBox" name="comboPullbackSortField">
+            <item>
+             <property name="text">
+              <string>偏离(%)</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>偏离绝对值</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>市盈率(PE)</string>
+             </property>
+            </item>
+           </widget>
+          </item>
+          <item row="4" column="2">
+           <widget class="QCheckBox" name="cbPullbackSortDesc">
+            <property name="text">
+             <string>降序</string>
+            </property>
+            <property name="checked">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </item>
+        <item>
+         <widget class="QProgressBar" name="progressBarPullback"/>
+        </item>
+        <item>
+         <layout class="QHBoxLayout" name="horizontalLayoutPullbackStatus">
+          <item>
+           <widget class="QLabel" name="labelPullbackStage">
+            <property name="text">
+             <string>就绪</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <spacer name="horizontalSpacerPullback">
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>40</width>
+              <height>20</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+          <item>
+           <widget class="QLabel" name="labelPullbackProgress">
+            <property name="text">
+             <string>0/0</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </item>
+        <item>
+         <widget class="QTableView" name="tableViewPullback"/>
         </item>
        </layout>
       </widget>

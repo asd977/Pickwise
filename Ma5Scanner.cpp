@@ -213,18 +213,29 @@ void Ma5Scanner::pumpKline()
         QVector<QString> dates;
         QVector<double> closes;
         const QString secid = secidFor(s);
-        const int need = m_cfg.belowDays + 6;
+        const int aboveDays = (m_cfg.mode == ScanConfig::Mode::PullbackToMa5) ? m_cfg.pullbackAboveDays : 0;
+        const int need = qMax(m_cfg.belowDays, aboveDays) + 6;
 
         if (cacheGet(secid, dates, closes) && closes.size() >= need) {
             KlineStats st;
-            if (computeStatsFromBars(dates, closes, m_cfg.belowDays, st) && st.ok) {
-                if (s.last > st.ma5Last && st.lastNDaysCloseBelowMA5) {
+            const int aboveDays = (m_cfg.mode == ScanConfig::Mode::PullbackToMa5) ? m_cfg.pullbackAboveDays : 0;
+            if (computeStatsFromBars(dates, closes, m_cfg.belowDays, aboveDays, st) && st.ok) {
+                const bool slopeOk = !m_cfg.requireMa5SlopeUp || (st.ma5Last > st.ma5Prev);
+                const bool isBreakAbove = (s.last > st.ma5Last && st.prevNDaysCloseBelowMA5 && slopeOk);
+                const double tol = m_cfg.pullbackTolerancePct / 100.0;
+                const bool nearMa5 = (s.last >= st.ma5Last * (1.0 - tol) && s.last <= st.ma5Last * (1.0 + tol));
+                const bool isPullback = (st.prevNDaysCloseAboveMA5 && slopeOk && nearMa5);
+                const bool match = (m_cfg.mode == ScanConfig::Mode::BreakAboveMa5) ? isBreakAbove : isPullback;
+                if (match) {
+                    const int daysValue = (m_cfg.mode == ScanConfig::Mode::PullbackToMa5)
+                                              ? m_cfg.pullbackAboveDays
+                                              : m_cfg.belowDays;
                     PickRow r;
                     r.code = s.code; r.name = s.name; r.market = s.market;
                     r.sector = s.sector; r.pe = s.pe;
                     r.last = s.last; r.ma5 = st.ma5Last;
                     r.biasPct = (r.last / r.ma5 - 1.0) * 100.0;
-                    r.belowDays = m_cfg.belowDays;
+                    r.belowDays = daysValue;
                     m_results.push_back(r);
                 }
             }
@@ -290,7 +301,8 @@ void Ma5Scanner::sendKlineTask(Task t)
     const int marketUsed = t.marketTryList.value(t.marketTryIndex, t.s.market);
     t.secidUsed = secidFor(t.s, marketUsed);
 
-    const int needLmt = qMax(40, m_cfg.belowDays + 15);
+    const int aboveDays = (m_cfg.mode == ScanConfig::Mode::PullbackToMa5) ? m_cfg.pullbackAboveDays : 0;
+    const int needLmt = qMax(40, qMax(m_cfg.belowDays, aboveDays) + 15);
 
     QUrl url("https://push2his.eastmoney.com/api/qt/stock/kline/get");
     QUrlQuery q;
@@ -367,14 +379,24 @@ void Ma5Scanner::sendKlineTask(Task t)
         cachePut(t.secidUsed, dates, closes);
 
         KlineStats st;
-        if (computeStatsFromBars(dates, closes, m_cfg.belowDays, st) && st.ok) {
-            if (t.s.last > st.ma5Last && st.lastNDaysCloseBelowMA5) {
+        const int aboveDays = (m_cfg.mode == ScanConfig::Mode::PullbackToMa5) ? m_cfg.pullbackAboveDays : 0;
+        if (computeStatsFromBars(dates, closes, m_cfg.belowDays, aboveDays, st) && st.ok) {
+            const bool slopeOk = !m_cfg.requireMa5SlopeUp || (st.ma5Last > st.ma5Prev);
+            const bool isBreakAbove = (t.s.last > st.ma5Last && st.prevNDaysCloseBelowMA5 && slopeOk);
+            const double tol = m_cfg.pullbackTolerancePct / 100.0;
+            const bool nearMa5 = (t.s.last >= st.ma5Last * (1.0 - tol) && t.s.last <= st.ma5Last * (1.0 + tol));
+            const bool isPullback = (st.prevNDaysCloseAboveMA5 && slopeOk && nearMa5);
+            const bool match = (m_cfg.mode == ScanConfig::Mode::BreakAboveMa5) ? isBreakAbove : isPullback;
+            if (match) {
+                const int daysValue = (m_cfg.mode == ScanConfig::Mode::PullbackToMa5)
+                                          ? m_cfg.pullbackAboveDays
+                                          : m_cfg.belowDays;
                 PickRow r;
                 r.code = t.s.code; r.name = t.s.name; r.market = t.s.market;
                 r.sector = t.s.sector; r.pe = t.s.pe;
                 r.last = t.s.last; r.ma5 = st.ma5Last;
                 r.biasPct = (r.last / r.ma5 - 1.0) * 100.0;
-                r.belowDays = m_cfg.belowDays;
+                r.belowDays = daysValue;
                 m_results.push_back(r);
             }
         }
@@ -417,11 +439,12 @@ bool Ma5Scanner::parseKlineBars(const QByteArray& body, QVector<QString>& dates,
     return closes.size() >= 6;
 }
 
-bool Ma5Scanner::computeStatsFromBars(const QVector<QString>& dates, const QVector<double>& closes, int belowDays, KlineStats& out)
+bool Ma5Scanner::computeStatsFromBars(const QVector<QString>& dates, const QVector<double>& closes, int belowDays, int aboveDays, KlineStats& out)
 {
     out = KlineStats{};
     if (dates.size() != closes.size()) return false;
-    if (closes.size() < belowDays + 5) return false;
+    const int requiredDays = qMax(belowDays, aboveDays);
+    if (closes.size() < requiredDays + 5) return false;
 
     QVector<QString> d = dates;
     QVector<double>  c = closes;
@@ -433,7 +456,7 @@ bool Ma5Scanner::computeStatsFromBars(const QVector<QString>& dates, const QVect
     }
 
     const int n = c.size();
-    if (n < belowDays + 5) return false;
+    if (n < requiredDays + 5) return false;
 
     auto ma5At = [&](int idx)->double {
         double sum = 0;
@@ -441,17 +464,33 @@ bool Ma5Scanner::computeStatsFromBars(const QVector<QString>& dates, const QVect
         return sum / 5.0;
     };
 
+    out.lastClose = c.back();
     out.ma5Last = ma5At(n - 1);
+    out.ma5Prev = (n >= 6) ? ma5At(n - 2) : out.ma5Last;
 
     bool allBelow = true;
-    for (int idx = n - belowDays; idx <= n - 1; ++idx) {
+    for (int offset = belowDays; offset >= 1; --offset) {
+        const int idx = n - 1 - offset;
         if (idx < 4) { allBelow = false; break; }
         const double ma = ma5At(idx);
         if (!(c[idx] < ma)) { allBelow = false; break; }
     }
 
+    bool allAbove = true;
+    if (aboveDays <= 0) {
+        allAbove = false;
+    } else {
+        for (int offset = aboveDays; offset >= 1; --offset) {
+            const int idx = n - 1 - offset;
+            if (idx < 4) { allAbove = false; break; }
+            const double ma = ma5At(idx);
+            if (!(c[idx] > ma)) { allAbove = false; break; }
+        }
+    }
+
     out.ok = true;
-    out.lastNDaysCloseBelowMA5 = allBelow;
+    out.prevNDaysCloseBelowMA5 = allBelow;
+    out.prevNDaysCloseAboveMA5 = allAbove;
     return true;
 }
 

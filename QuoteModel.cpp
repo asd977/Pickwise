@@ -20,7 +20,7 @@ QVariant QuoteModel::headerData(int section, Qt::Orientation o, int role) const
         case 5: return "现价";
         case 6: return "MA5(近收)";
         case 7: return "偏离(%)";
-        case 8: return "N(收<MA5)";
+        case 8: return m_daysHeaderLabel;
         case 9: return "K线";
         default: return {};
         }
@@ -56,6 +56,12 @@ void QuoteModel::setRows(const QVector<PickRow>& rows)
     beginResetModel();
     m_rows = rows;
     endResetModel();
+}
+
+void QuoteModel::setDaysHeaderLabel(const QString& label)
+{
+    m_daysHeaderLabel = label;
+    emit headerDataChanged(Qt::Horizontal, 8, 8);
 }
 
 void QuoteModel::sort(int column, Qt::SortOrder order)
