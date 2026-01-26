@@ -31,6 +31,8 @@ struct ScanConfig {
     int maxRetries = 2;
     int sortField = 0;
     bool sortDesc = true;
+    QString spotBaseUrl = "https://82.push2.eastmoney.com/api/qt/clist/get";
+    QString klineBaseUrl = "https://push2his.eastmoney.com/api/qt/stock/kline/get";
     enum class Mode {
         BreakAboveMa5,
         PullbackToMa5

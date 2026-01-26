@@ -247,6 +247,16 @@
             </property>
            </widget>
           </item>
+          <item row="5" column="0">
+           <widget class="QLabel" name="labelApiProvider">
+            <property name="text">
+             <string>接口:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="5" column="1">
+           <widget class="QComboBox" name="comboApiProvider"/>
+          </item>
           <item row="0" column="3">
            <layout class="QHBoxLayout" name="horizontalLayout">
             <item>
@@ -518,6 +528,16 @@
              <bool>true</bool>
             </property>
            </widget>
+          </item>
+          <item row="5" column="0">
+           <widget class="QLabel" name="labelPullbackApiProvider">
+            <property name="text">
+             <string>接口:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="5" column="1">
+           <widget class="QComboBox" name="comboPullbackApiProvider"/>
           </item>
          </layout>
         </item>

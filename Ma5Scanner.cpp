@@ -91,7 +91,7 @@ void Ma5Scanner::fetchSpotPage(int pn)
 {
     if (m_cancelled) return;
 
-    QUrl url("https://82.push2.eastmoney.com/api/qt/clist/get");
+    QUrl url(m_cfg.spotBaseUrl);
     QUrlQuery q;
     q.addQueryItem("pn", QString::number(pn));
     q.addQueryItem("pz", QString::number(m_cfg.pageSize));
@@ -304,7 +304,7 @@ void Ma5Scanner::sendKlineTask(Task t)
     const int aboveDays = (m_cfg.mode == ScanConfig::Mode::PullbackToMa5) ? m_cfg.pullbackAboveDays : 0;
     const int needLmt = qMax(40, qMax(m_cfg.belowDays, aboveDays) + 15);
 
-    QUrl url("https://push2his.eastmoney.com/api/qt/stock/kline/get");
+    QUrl url(m_cfg.klineBaseUrl);
     QUrlQuery q;
     q.addQueryItem("secid", t.secidUsed);
     q.addQueryItem("klt", "101");

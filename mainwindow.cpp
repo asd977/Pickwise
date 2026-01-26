@@ -23,6 +23,23 @@ MainWindow::MainWindow(QWidget *parent)
     m_model->setDaysHeaderLabel("N(收<MA5)");
     m_pullbackModel->setDaysHeaderLabel("N(收>MA5)");
 
+    struct ApiProvider {
+        QString name;
+        QString spotUrl;
+        QString klineUrl;
+    };
+    const QVector<ApiProvider> providers = {
+        {"东财主站(82)", "https://82.push2.eastmoney.com/api/qt/clist/get", "https://push2his.eastmoney.com/api/qt/stock/kline/get"},
+        {"东财镜像(83)", "https://83.push2.eastmoney.com/api/qt/clist/get", "https://push2his.eastmoney.com/api/qt/stock/kline/get"},
+        {"东财镜像(84)", "https://84.push2.eastmoney.com/api/qt/clist/get", "https://push2his.eastmoney.com/api/qt/stock/kline/get"},
+        {"东财备用(push2)", "https://push2.eastmoney.com/api/qt/clist/get", "https://push2.eastmoney.com/api/qt/stock/kline/get"}
+    };
+    for (const auto& p : providers) {
+        const QStringList payload{p.spotUrl, p.klineUrl};
+        ui->comboApiProvider->addItem(p.name, payload);
+        ui->comboPullbackApiProvider->addItem(p.name, payload);
+    }
+
     auto* chartLayout = new QVBoxLayout(ui->backtestHost);
     chartLayout->setContentsMargins(0, 0, 0, 0);
     m_backtestWidget = new BacktestWidget(ui->backtestHost);
@@ -73,6 +90,11 @@ MainWindow::MainWindow(QWidget *parent)
         cfg.belowDays = ui->spinBelowDays->value();
         cfg.includeBJ = ui->cbIncludeBJ->isChecked();
         cfg.requireMa5SlopeUp = ui->cbMa5SlopeUp->isChecked();
+        const auto apiData = ui->comboApiProvider->currentData().toStringList();
+        if (apiData.size() >= 2) {
+            cfg.spotBaseUrl = apiData[0];
+            cfg.klineBaseUrl = apiData[1];
+        }
 //        cfg.excludeST = ui->cbExcludeST->isChecked();
         cfg.pageSize = ui->spinPageSize->value();
         cfg.maxInFlight = ui->spinInFlight->value();
@@ -100,6 +122,11 @@ MainWindow::MainWindow(QWidget *parent)
         cfg.pullbackTolerancePct = ui->spinPullbackTolerance->value();
         cfg.includeBJ = ui->cbPullbackIncludeBJ->isChecked();
         cfg.requireMa5SlopeUp = ui->cbPullbackSlopeUp->isChecked();
+        const auto apiData = ui->comboPullbackApiProvider->currentData().toStringList();
+        if (apiData.size() >= 2) {
+            cfg.spotBaseUrl = apiData[0];
+            cfg.klineBaseUrl = apiData[1];
+        }
         cfg.pageSize = ui->spinPullbackPageSize->value();
         cfg.maxInFlight = ui->spinPullbackInFlight->value();
         cfg.timeoutMs = ui->spinPullbackTimeout->value();
