@@ -86,6 +86,11 @@ QByteArray Ma5Scanner::normalizeJsonMaybeJsonp(const QByteArray& body)
     int ro = body.lastIndexOf('}');
     if (lb >= 0 && rb > lb && (lo < 0 || lb < lo)) return body.mid(lb, rb - lb + 1);
     if (lo >= 0 && ro > lo) return body.mid(lo, ro - lo + 1);
+    const QByteArray trimmed = body.trimmed();
+    if (trimmed == "null" || trimmed == "OK") return QByteArrayLiteral("[]");
+    if (body.contains("CallbackList(null)") || body.contains("(null)")) {
+        return QByteArrayLiteral("[]");
+    }
     return body;
 }
 
@@ -212,6 +217,7 @@ bool Ma5Scanner::parseSpotPageSina(const QByteArray& body, QVector<Spot>& outPag
         s.code = o.value("code").toString();
         s.name = o.value("name").toString();
         s.last = o.value("trade").toString().toDouble();
+        s.pe = o.value("per").toDouble();
         const QString symbol = o.value("symbol").toString();
         s.market = symbol.startsWith("sh") ? 1 : 0;
         if (s.code.size() == 6 && s.last > 0) outPage.push_back(s);
@@ -351,6 +357,12 @@ void Ma5Scanner::sendKlineTask(Task t)
         q.addQueryItem("scale", "240");
         q.addQueryItem("ma", "no");
         q.addQueryItem("datalen", QString::number(needLmt));
+    } else if (m_cfg.provider == ScanConfig::Provider::Tonghuashun) {
+        const QString symbol = QString("hs_%1").arg(t.s.code);
+        QString path = url.path();
+        if (!path.endsWith('/')) path += '/';
+        path += QString("%1/01/last.js").arg(symbol);
+        url.setPath(path);
     } else {
         q.addQueryItem("secid", t.secidUsed);
         q.addQueryItem("klt", "101");
@@ -367,6 +379,9 @@ void Ma5Scanner::sendKlineTask(Task t)
 
     QNetworkRequest req(url);
     FillCommonHeaders(req);
+    if (m_cfg.provider == ScanConfig::Provider::Tonghuashun) {
+        req.setRawHeader("Referer", "https://q.10jqka.com.cn/");
+    }
 
     auto* reply = m_nam->get(req);
     ++m_inFlight;
@@ -460,6 +475,9 @@ bool Ma5Scanner::parseKlineBars(const QByteArray& body, const ScanConfig& cfg, Q
     if (cfg.provider == ScanConfig::Provider::Sina) {
         return parseKlineBarsSina(body, dates, closes);
     }
+    if (cfg.provider == ScanConfig::Provider::Tonghuashun) {
+        return parseKlineBarsTonghuashun(body, dates, closes);
+    }
     return parseKlineBarsEastmoney(body, dates, closes);
 }
 
@@ -513,6 +531,34 @@ bool Ma5Scanner::parseKlineBarsSina(const QByteArray& body, QVector<QString>& da
         dates.push_back(o.value("day").toString());
         closes.push_back(o.value("close").toString().toDouble());
     }
+    return closes.size() >= 6;
+}
+
+bool Ma5Scanner::parseKlineBarsTonghuashun(const QByteArray& body, QVector<QString>& dates, QVector<double>& closes)
+{
+    auto doc = QJsonDocument::fromJson(body);
+    if (!doc.isObject()) return false;
+
+    const auto root = doc.object();
+    const auto dataVal = root.value("data");
+    if (!dataVal.isString()) return false;
+
+    const auto raw = dataVal.toString();
+    const auto rows = raw.split(';', Qt::SkipEmptyParts);
+    if (rows.size() < 6) return false;
+
+    dates.clear();
+    closes.clear();
+    dates.reserve(rows.size());
+    closes.reserve(rows.size());
+
+    for (const auto& row : rows) {
+        const auto parts = row.split(',');
+        if (parts.size() < 5) continue;
+        dates.push_back(parts[0]);
+        closes.push_back(parts[4].toDouble());
+    }
+
     return closes.size() >= 6;
 }
 

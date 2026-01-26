@@ -38,7 +38,8 @@ MainWindow::MainWindow(QWidget *parent)
         {"新浪财经(HTTPS)", ScanConfig::Provider::Sina, "https://money.finance.sina.com.cn/quotes_service/api/jsonp_v2.php/IO.XSRV2.CallbackList/Market_Center.getHQNodeData", "https://money.finance.sina.com.cn/quotes_service/api/json_v2.php/CN_MarketData.getKLineData"},
         {"新浪财经(HTTP)", ScanConfig::Provider::Sina, "http://money.finance.sina.com.cn/quotes_service/api/jsonp_v2.php/IO.XSRV2.CallbackList/Market_Center.getHQNodeData", "http://money.finance.sina.com.cn/quotes_service/api/json_v2.php/CN_MarketData.getKLineData"},
         {"新浪财经(HTTPS+移动K线)", ScanConfig::Provider::Sina, "https://money.finance.sina.com.cn/quotes_service/api/jsonp_v2.php/IO.XSRV2.CallbackList/Market_Center.getHQNodeData", "https://quotes.sina.cn/cn/api/json_v2.php/CN_MarketData.getKLineData"},
-        {"新浪财经(HTTP+移动K线)", ScanConfig::Provider::Sina, "http://money.finance.sina.com.cn/quotes_service/api/jsonp_v2.php/IO.XSRV2.CallbackList/Market_Center.getHQNodeData", "http://quotes.sina.cn/cn/api/json_v2.php/CN_MarketData.getKLineData"}
+        {"新浪财经(HTTP+移动K线)", ScanConfig::Provider::Sina, "http://money.finance.sina.com.cn/quotes_service/api/jsonp_v2.php/IO.XSRV2.CallbackList/Market_Center.getHQNodeData", "http://quotes.sina.cn/cn/api/json_v2.php/CN_MarketData.getKLineData"},
+        {"同花顺K线(东财列表)", ScanConfig::Provider::Tonghuashun, "https://82.push2.eastmoney.com/api/qt/clist/get", "https://d.10jqka.com.cn/v6/line"}
     };
     for (const auto& p : providers) {
         QVariantMap payload;
