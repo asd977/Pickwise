@@ -19,10 +19,15 @@ public:
 
 private:
     void setUiBusy(bool busy);
+    void exportCsv(const QuoteModel* model);
+    void updateProgress(int done, int total, ScanConfig::Mode mode);
+    void updateStage(const QString& text, ScanConfig::Mode mode);
 
 private:
     Ui::MainWindow *ui;
     Ma5Scanner* m_scanner = nullptr;
     QuoteModel* m_model = nullptr;
+    QuoteModel* m_pullbackModel = nullptr;
     BacktestWidget* m_backtestWidget = nullptr;
+    ScanConfig::Mode m_activeMode = ScanConfig::Mode::BreakAboveMa5;
 };

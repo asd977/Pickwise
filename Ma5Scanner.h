@@ -22,18 +22,36 @@ struct Spot {
 struct ScanConfig {
     int belowDays = 3;
     bool includeBJ = true;
+    bool requireMa5SlopeUp = false;
+    int pullbackAboveDays = 5;
+    double pullbackTolerancePct = 1.0;
     int pageSize = 200;
     int maxInFlight = 12;
     int timeoutMs = 12000;
     int maxRetries = 2;
     int sortField = 0;
     bool sortDesc = true;
+    enum class Provider {
+        Eastmoney,
+        Sina
+    };
+    Provider provider = Provider::Eastmoney;
+    QString spotBaseUrl = "https://82.push2.eastmoney.com/api/qt/clist/get";
+    QString klineBaseUrl = "https://push2his.eastmoney.com/api/qt/stock/kline/get";
+    enum class Mode {
+        BreakAboveMa5,
+        PullbackToMa5
+    };
+    Mode mode = Mode::BreakAboveMa5;
 };
 
 struct KlineStats {
     bool ok = false;
+    double lastClose = 0;
     double ma5Last = 0;
-    bool lastNDaysCloseBelowMA5 = false;
+    double ma5Prev = 0;
+    bool prevNDaysCloseBelowMA5 = false;
+    bool prevNDaysCloseAboveMA5 = false;
 };
 
 class Ma5Scanner : public QObject
@@ -55,7 +73,6 @@ signals:
 private:
     // step1: fetch all spots
     void fetchSpotPage(int pn);
-    bool parseSpotPage(const QByteArray& body, QVector<Spot>& outPage, int* totalOut);
 
     // step2: kline queue
     void startKlineQueue();
@@ -74,8 +91,12 @@ private:
     void sendKlineTask(Task t);                // 真正发请求：保持 Task 状态续跑
 
     static QByteArray normalizeJsonMaybeJsonp(const QByteArray& body);
-    static bool parseKlineBars(const QByteArray& body, QVector<QString>& dates, QVector<double>& closes);
-    static bool computeStatsFromBars(const QVector<QString>& dates, const QVector<double>& closes, int belowDays, KlineStats& out);
+    static bool parseKlineBars(const QByteArray& body, const ScanConfig& cfg, QVector<QString>& dates, QVector<double>& closes);
+    static bool computeStatsFromBars(const QVector<QString>& dates, const QVector<double>& closes, int belowDays, int aboveDays, KlineStats& out);
+    static bool parseSpotPageEastmoney(const QByteArray& body, QVector<Spot>& outPage, int* totalOut);
+    static bool parseSpotPageSina(const QByteArray& body, QVector<Spot>& outPage);
+    static bool parseKlineBarsEastmoney(const QByteArray& body, QVector<QString>& dates, QVector<double>& closes);
+    static bool parseKlineBarsSina(const QByteArray& body, QVector<QString>& dates, QVector<double>& closes);
 
     // cache
     void loadCache();

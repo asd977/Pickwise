@@ -29,10 +29,12 @@ public:
     void sort(int column, Qt::SortOrder order) override;
 
     void setRows(const QVector<PickRow>& rows);
+    void setDaysHeaderLabel(const QString& label);
     const QVector<PickRow>& rows() const { return m_rows; }
 
 private:
     QVector<PickRow> m_rows;
+    QString m_daysHeaderLabel = "N(收<MA5)";
     int m_sortColumn = -1;
     Qt::SortOrder m_sortOrder = Qt::DescendingOrder;
 };
