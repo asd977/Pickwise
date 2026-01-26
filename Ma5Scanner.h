@@ -33,7 +33,8 @@ struct ScanConfig {
     bool sortDesc = true;
     enum class Provider {
         Eastmoney,
-        Sina
+        Sina,
+        Tonghuashun
     };
     Provider provider = Provider::Eastmoney;
     QString spotBaseUrl = "https://82.push2.eastmoney.com/api/qt/clist/get";
@@ -97,6 +98,7 @@ private:
     static bool parseSpotPageSina(const QByteArray& body, QVector<Spot>& outPage);
     static bool parseKlineBarsEastmoney(const QByteArray& body, QVector<QString>& dates, QVector<double>& closes);
     static bool parseKlineBarsSina(const QByteArray& body, QVector<QString>& dates, QVector<double>& closes);
+    static bool parseKlineBarsTonghuashun(const QByteArray& body, QVector<QString>& dates, QVector<double>& closes);
 
     // cache
     void loadCache();
