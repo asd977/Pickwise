@@ -86,6 +86,11 @@ QByteArray Ma5Scanner::normalizeJsonMaybeJsonp(const QByteArray& body)
     int ro = body.lastIndexOf('}');
     if (lb >= 0 && rb > lb && (lo < 0 || lb < lo)) return body.mid(lb, rb - lb + 1);
     if (lo >= 0 && ro > lo) return body.mid(lo, ro - lo + 1);
+    const QByteArray trimmed = body.trimmed();
+    if (trimmed == "null" || trimmed == "OK") return QByteArrayLiteral("[]");
+    if (body.contains("CallbackList(null)") || body.contains("(null)")) {
+        return QByteArrayLiteral("[]");
+    }
     return body;
 }
 
