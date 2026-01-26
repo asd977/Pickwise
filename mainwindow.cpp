@@ -9,6 +9,7 @@
 #include <QFile>
 #include <QTextStream>
 #include <QVBoxLayout>
+#include <QVariant>
 
 
 MainWindow::MainWindow(QWidget *parent)
@@ -25,17 +26,22 @@ MainWindow::MainWindow(QWidget *parent)
 
     struct ApiProvider {
         QString name;
+        ScanConfig::Provider provider;
         QString spotUrl;
         QString klineUrl;
     };
     const QVector<ApiProvider> providers = {
-        {"东财主站(82)", "https://82.push2.eastmoney.com/api/qt/clist/get", "https://push2his.eastmoney.com/api/qt/stock/kline/get"},
-        {"东财镜像(83)", "https://83.push2.eastmoney.com/api/qt/clist/get", "https://push2his.eastmoney.com/api/qt/stock/kline/get"},
-        {"东财镜像(84)", "https://84.push2.eastmoney.com/api/qt/clist/get", "https://push2his.eastmoney.com/api/qt/stock/kline/get"},
-        {"东财备用(push2)", "https://push2.eastmoney.com/api/qt/clist/get", "https://push2.eastmoney.com/api/qt/stock/kline/get"}
+        {"东财主站(82)", ScanConfig::Provider::Eastmoney, "https://82.push2.eastmoney.com/api/qt/clist/get", "https://push2his.eastmoney.com/api/qt/stock/kline/get"},
+        {"东财镜像(83)", ScanConfig::Provider::Eastmoney, "https://83.push2.eastmoney.com/api/qt/clist/get", "https://push2his.eastmoney.com/api/qt/stock/kline/get"},
+        {"东财镜像(84)", ScanConfig::Provider::Eastmoney, "https://84.push2.eastmoney.com/api/qt/clist/get", "https://push2his.eastmoney.com/api/qt/stock/kline/get"},
+        {"东财备用(push2)", ScanConfig::Provider::Eastmoney, "https://push2.eastmoney.com/api/qt/clist/get", "https://push2.eastmoney.com/api/qt/stock/kline/get"},
+        {"新浪财经", ScanConfig::Provider::Sina, "https://money.finance.sina.com.cn/quotes_service/api/jsonp_v2.php/IO.XSRV2.CallbackList/Market_Center.getHQNodeData", "https://money.finance.sina.com.cn/quotes_service/api/json_v2.php/CN_MarketData.getKLineData"}
     };
     for (const auto& p : providers) {
-        const QStringList payload{p.spotUrl, p.klineUrl};
+        QVariantMap payload;
+        payload.insert("provider", static_cast<int>(p.provider));
+        payload.insert("spot", p.spotUrl);
+        payload.insert("kline", p.klineUrl);
         ui->comboApiProvider->addItem(p.name, payload);
         ui->comboPullbackApiProvider->addItem(p.name, payload);
     }
@@ -90,10 +96,11 @@ MainWindow::MainWindow(QWidget *parent)
         cfg.belowDays = ui->spinBelowDays->value();
         cfg.includeBJ = ui->cbIncludeBJ->isChecked();
         cfg.requireMa5SlopeUp = ui->cbMa5SlopeUp->isChecked();
-        const auto apiData = ui->comboApiProvider->currentData().toStringList();
-        if (apiData.size() >= 2) {
-            cfg.spotBaseUrl = apiData[0];
-            cfg.klineBaseUrl = apiData[1];
+        const auto apiData = ui->comboApiProvider->currentData().toMap();
+        if (!apiData.isEmpty()) {
+            cfg.provider = static_cast<ScanConfig::Provider>(apiData.value("provider").toInt());
+            cfg.spotBaseUrl = apiData.value("spot").toString();
+            cfg.klineBaseUrl = apiData.value("kline").toString();
         }
 //        cfg.excludeST = ui->cbExcludeST->isChecked();
         cfg.pageSize = ui->spinPageSize->value();
@@ -122,10 +129,11 @@ MainWindow::MainWindow(QWidget *parent)
         cfg.pullbackTolerancePct = ui->spinPullbackTolerance->value();
         cfg.includeBJ = ui->cbPullbackIncludeBJ->isChecked();
         cfg.requireMa5SlopeUp = ui->cbPullbackSlopeUp->isChecked();
-        const auto apiData = ui->comboPullbackApiProvider->currentData().toStringList();
-        if (apiData.size() >= 2) {
-            cfg.spotBaseUrl = apiData[0];
-            cfg.klineBaseUrl = apiData[1];
+        const auto apiData = ui->comboPullbackApiProvider->currentData().toMap();
+        if (!apiData.isEmpty()) {
+            cfg.provider = static_cast<ScanConfig::Provider>(apiData.value("provider").toInt());
+            cfg.spotBaseUrl = apiData.value("spot").toString();
+            cfg.klineBaseUrl = apiData.value("kline").toString();
         }
         cfg.pageSize = ui->spinPullbackPageSize->value();
         cfg.maxInFlight = ui->spinPullbackInFlight->value();

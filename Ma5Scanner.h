@@ -31,6 +31,11 @@ struct ScanConfig {
     int maxRetries = 2;
     int sortField = 0;
     bool sortDesc = true;
+    enum class Provider {
+        Eastmoney,
+        Sina
+    };
+    Provider provider = Provider::Eastmoney;
     QString spotBaseUrl = "https://82.push2.eastmoney.com/api/qt/clist/get";
     QString klineBaseUrl = "https://push2his.eastmoney.com/api/qt/stock/kline/get";
     enum class Mode {
@@ -68,7 +73,6 @@ signals:
 private:
     // step1: fetch all spots
     void fetchSpotPage(int pn);
-    bool parseSpotPage(const QByteArray& body, QVector<Spot>& outPage, int* totalOut);
 
     // step2: kline queue
     void startKlineQueue();
@@ -87,8 +91,12 @@ private:
     void sendKlineTask(Task t);                // 真正发请求：保持 Task 状态续跑
 
     static QByteArray normalizeJsonMaybeJsonp(const QByteArray& body);
-    static bool parseKlineBars(const QByteArray& body, QVector<QString>& dates, QVector<double>& closes);
+    static bool parseKlineBars(const QByteArray& body, const ScanConfig& cfg, QVector<QString>& dates, QVector<double>& closes);
     static bool computeStatsFromBars(const QVector<QString>& dates, const QVector<double>& closes, int belowDays, int aboveDays, KlineStats& out);
+    static bool parseSpotPageEastmoney(const QByteArray& body, QVector<Spot>& outPage, int* totalOut);
+    static bool parseSpotPageSina(const QByteArray& body, QVector<Spot>& outPage);
+    static bool parseKlineBarsEastmoney(const QByteArray& body, QVector<QString>& dates, QVector<double>& closes);
+    static bool parseKlineBarsSina(const QByteArray& body, QVector<QString>& dates, QVector<double>& closes);
 
     // cache
     void loadCache();
