@@ -217,6 +217,7 @@ bool Ma5Scanner::parseSpotPageSina(const QByteArray& body, QVector<Spot>& outPag
         s.code = o.value("code").toString();
         s.name = o.value("name").toString();
         s.last = o.value("trade").toString().toDouble();
+        s.pe = o.value("per").toDouble();
         const QString symbol = o.value("symbol").toString();
         s.market = symbol.startsWith("sh") ? 1 : 0;
         if (s.code.size() == 6 && s.last > 0) outPage.push_back(s);
