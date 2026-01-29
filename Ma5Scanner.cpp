@@ -26,6 +26,36 @@ static void FillCommonHeaders(QNetworkRequest& req) {
     req.setRawHeader("Accept-Language", "zh-CN,zh;q=0.9,en;q=0.8");
     req.setRawHeader("Referer", "https://quote.eastmoney.com/");
 }
+
+static QString findStringField(const QJsonObject& obj, const QStringList& keys)
+{
+    for (const auto& key : keys) {
+        const auto v = obj.value(key);
+        if (v.isString()) return v.toString();
+        if (v.isDouble()) return QString::number(v.toDouble());
+    }
+    return {};
+}
+
+static double findDoubleField(const QJsonObject& obj, const QStringList& keys)
+{
+    for (const auto& key : keys) {
+        const auto v = obj.value(key);
+        if (v.isDouble()) return v.toDouble();
+        if (v.isString()) return v.toString().toDouble();
+    }
+    return 0.0;
+}
+
+static int marketFromCode(const QString& code)
+{
+    if (code.startsWith("6")) return 1;
+    if (code.startsWith("8") || code.startsWith("4") || code.startsWith("43")
+        || code.startsWith("83") || code.startsWith("87") || code.startsWith("88")) {
+        return 2;
+    }
+    return 0;
+}
 }
 
 Ma5Scanner::Ma5Scanner(QObject* parent) : QObject(parent)
@@ -93,6 +123,11 @@ QByteArray Ma5Scanner::normalizeJsonMaybeJsonp(const QByteArray& body)
 void Ma5Scanner::fetchSpotPage(int pn)
 {
     if (m_cancelled) return;
+    if (m_cfg.provider == ScanConfig::Provider::AkShare && pn > 1) {
+        emit stageChanged(QString("列表完成：%1 只，开始计算 MA5 / 条件筛选...").arg(m_spots.size()));
+        startKlineQueue();
+        return;
+    }
 
     QUrl url(m_cfg.spotBaseUrl);
     QUrlQuery q;
@@ -104,7 +139,7 @@ void Ma5Scanner::fetchSpotPage(int pn)
         q.addQueryItem("node", "hs_a");
         q.addQueryItem("symbol", "");
         q.addQueryItem("_s_r_a", "init");
-    } else {
+    } else if (m_cfg.provider == ScanConfig::Provider::Eastmoney) {
         q.addQueryItem("pn", QString::number(pn));
         q.addQueryItem("pz", QString::number(m_cfg.pageSize));
         q.addQueryItem("po", "1");
@@ -116,7 +151,9 @@ void Ma5Scanner::fetchSpotPage(int pn)
         q.addQueryItem("fs", "m:0+t:6,m:0+t:80,m:1+t:2,m:1+t:23,m:0+t:81+s:2048");
         q.addQueryItem("fields", "f12,f14,f2,f13,f9,f100");
     }
-    url.setQuery(q);
+    if (!q.isEmpty()) {
+        url.setQuery(q);
+    }
 
     QNetworkRequest req(url);
     FillCommonHeaders(req);
@@ -143,6 +180,11 @@ void Ma5Scanner::fetchSpotPage(int pn)
         int total = 0;
         if (m_cfg.provider == ScanConfig::Provider::Sina) {
             if (!parseSpotPageSina(normalizeJsonMaybeJsonp(raw), page)) {
+                emit failed(QString("解析列表失败。响应前200字：%1").arg(QString::fromUtf8(raw.left(200))));
+                return;
+            }
+        } else if (m_cfg.provider == ScanConfig::Provider::AkShare) {
+            if (!parseSpotPageAkShare(normalizeJsonMaybeJsonp(raw), page, &total)) {
                 emit failed(QString("解析列表失败。响应前200字：%1").arg(QString::fromUtf8(raw.left(200))));
                 return;
             }
@@ -214,6 +256,46 @@ bool Ma5Scanner::parseSpotPageSina(const QByteArray& body, QVector<Spot>& outPag
         s.last = o.value("trade").toString().toDouble();
         const QString symbol = o.value("symbol").toString();
         s.market = symbol.startsWith("sh") ? 1 : 0;
+        if (s.code.size() == 6 && s.last > 0) outPage.push_back(s);
+    }
+    return true;
+}
+
+bool Ma5Scanner::parseSpotPageAkShare(const QByteArray& body, QVector<Spot>& outPage, int* totalOut)
+{
+    auto doc = QJsonDocument::fromJson(body);
+    QJsonArray arr;
+    if (doc.isArray()) {
+        arr = doc.array();
+    } else if (doc.isObject()) {
+        const auto root = doc.object();
+        const auto dataVal = root.value("data");
+        if (dataVal.isArray()) {
+            arr = dataVal.toArray();
+        } else if (dataVal.isObject()) {
+            const auto dataObj = dataVal.toObject();
+            if (dataObj.value("data").isArray()) {
+                arr = dataObj.value("data").toArray();
+            }
+        }
+    } else {
+        return false;
+    }
+
+    if (totalOut) *totalOut = arr.size();
+
+    for (const auto& v : arr) {
+        if (!v.isObject()) continue;
+        const auto o = v.toObject();
+        Spot s;
+        s.code = findStringField(o, {"代码", "code", "symbol"});
+        s.name = findStringField(o, {"名称", "name"});
+        s.last = findDoubleField(o, {"最新价", "price", "trade", "close"});
+        s.pe = findDoubleField(o, {"市盈率", "市盈率-动态", "pe", "pe_ttm"});
+        s.sector = findStringField(o, {"行业", "sector"});
+        if (!s.code.isEmpty()) {
+            s.market = marketFromCode(s.code);
+        }
         if (s.code.size() == 6 && s.last > 0) outPage.push_back(s);
     }
     return true;
@@ -327,8 +409,13 @@ void Ma5Scanner::requestKlineInitial(const Spot& s)
     Task t;
     t.s = s;
     t.retry = 0;
-    t.marketTryList = fallbackMarketsFor(s);
-    t.marketTryIndex = 0;
+    if (m_cfg.provider == ScanConfig::Provider::AkShare) {
+        t.marketTryList = {s.market};
+        t.marketTryIndex = 0;
+    } else {
+        t.marketTryList = fallbackMarketsFor(s);
+        t.marketTryIndex = 0;
+    }
     sendKlineTask(t);
 }
 
@@ -351,6 +438,14 @@ void Ma5Scanner::sendKlineTask(Task t)
         q.addQueryItem("scale", "240");
         q.addQueryItem("ma", "no");
         q.addQueryItem("datalen", QString::number(needLmt));
+    } else if (m_cfg.provider == ScanConfig::Provider::AkShare) {
+        const QDate end = QDate::currentDate();
+        const QDate start = end.addDays(-400);
+        q.addQueryItem("symbol", t.s.code);
+        q.addQueryItem("period", "daily");
+        q.addQueryItem("start_date", start.toString("yyyyMMdd"));
+        q.addQueryItem("end_date", end.toString("yyyyMMdd"));
+        q.addQueryItem("adjust", "");
     } else {
         q.addQueryItem("secid", t.secidUsed);
         q.addQueryItem("klt", "101");
@@ -460,6 +555,9 @@ bool Ma5Scanner::parseKlineBars(const QByteArray& body, const ScanConfig& cfg, Q
     if (cfg.provider == ScanConfig::Provider::Sina) {
         return parseKlineBarsSina(body, dates, closes);
     }
+    if (cfg.provider == ScanConfig::Provider::AkShare) {
+        return parseKlineBarsAkShare(body, dates, closes);
+    }
     return parseKlineBarsEastmoney(body, dates, closes);
 }
 
@@ -512,6 +610,58 @@ bool Ma5Scanner::parseKlineBarsSina(const QByteArray& body, QVector<QString>& da
         const auto o = v.toObject();
         dates.push_back(o.value("day").toString());
         closes.push_back(o.value("close").toString().toDouble());
+    }
+    return closes.size() >= 6;
+}
+
+bool Ma5Scanner::parseKlineBarsAkShare(const QByteArray& body, QVector<QString>& dates, QVector<double>& closes)
+{
+    auto doc = QJsonDocument::fromJson(body);
+    QJsonArray arr;
+    if (doc.isArray()) {
+        arr = doc.array();
+    } else if (doc.isObject()) {
+        const auto root = doc.object();
+        const auto dataVal = root.value("data");
+        if (dataVal.isArray()) {
+            arr = dataVal.toArray();
+        } else if (dataVal.isObject()) {
+            const auto dataObj = dataVal.toObject();
+            if (dataObj.value("data").isArray()) {
+                arr = dataObj.value("data").toArray();
+            }
+        }
+    } else {
+        return false;
+    }
+
+    if (arr.size() < 6) return false;
+
+    dates.clear();
+    closes.clear();
+    dates.reserve(arr.size());
+    closes.reserve(arr.size());
+
+    for (const auto& v : arr) {
+        if (v.isObject()) {
+            const auto o = v.toObject();
+            const QString date = findStringField(o, {"日期", "date", "day", "trade_date"});
+            const double close = findDoubleField(o, {"收盘", "close", "close_price"});
+            if (!date.isEmpty() && close > 0) {
+                dates.push_back(date);
+                closes.push_back(close);
+            }
+        } else if (v.isArray()) {
+            const auto item = v.toArray();
+            if (item.size() >= 3) {
+                const QString date = item.at(0).toString();
+                const double close = item.at(2).toString().toDouble();
+                if (!date.isEmpty() && close > 0) {
+                    dates.push_back(date);
+                    closes.push_back(close);
+                }
+            }
+        }
     }
     return closes.size() >= 6;
 }
