@@ -86,6 +86,8 @@ private:
         QList<int> marketTryList;
         int marketTryIndex = 0;
         QString secidUsed; // 本次请求实际用的 secid
+        QStringList klineBaseUrlList;
+        int klineBaseUrlIndex = 0;
     };
 
     void requestKlineInitial(const Spot& s);   // 入队用：创建 Task
@@ -121,6 +123,8 @@ private:
 
     QVector<Spot> m_spots;
     int m_spotTotal = 0;
+    QStringList m_akShareSpotUrlList;
+    int m_akShareSpotUrlIndex = 0;
 
     QQueue<Spot> m_queue;
     int m_totalToDo = 0;   // 固定总数

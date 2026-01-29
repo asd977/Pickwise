@@ -14,6 +14,7 @@
 #include <QFile>
 #include <QSaveFile>
 #include <QTimer>
+#include <QRegularExpression>
 #include <QtMath>
 #include <algorithm>
 
@@ -56,6 +57,16 @@ static int marketFromCode(const QString& code)
     }
     return 0;
 }
+
+static QStringList splitBaseUrls(const QString& raw)
+{
+    QStringList items;
+    for (const auto& chunk : raw.split(QRegularExpression("[|;]"), Qt::SkipEmptyParts)) {
+        const auto trimmed = chunk.trimmed();
+        if (!trimmed.isEmpty()) items.push_back(trimmed);
+    }
+    return items;
+}
 }
 
 Ma5Scanner::Ma5Scanner(QObject* parent) : QObject(parent)
@@ -82,8 +93,18 @@ void Ma5Scanner::runOnce(const ScanConfig& cfg)
     m_inFlight = 0;
     m_totalToDo = 0;
     m_spotTotal = 0;
+    m_akShareSpotUrlList.clear();
+    m_akShareSpotUrlIndex = 0;
 
     loadCache();
+
+    if (m_cfg.provider == ScanConfig::Provider::AkShare) {
+        m_akShareSpotUrlList = splitBaseUrls(m_cfg.spotBaseUrl);
+        if (m_akShareSpotUrlList.isEmpty()) {
+            m_akShareSpotUrlList.push_back(m_cfg.spotBaseUrl);
+        }
+        m_akShareSpotUrlIndex = 0;
+    }
 
     emit stageChanged("拉取沪深京A股列表...");
     fetchSpotPage(1);
@@ -129,7 +150,10 @@ void Ma5Scanner::fetchSpotPage(int pn)
         return;
     }
 
-    QUrl url(m_cfg.spotBaseUrl);
+    const QString spotBase = (m_cfg.provider == ScanConfig::Provider::AkShare && !m_akShareSpotUrlList.isEmpty())
+                                 ? m_akShareSpotUrlList.value(m_akShareSpotUrlIndex)
+                                 : m_cfg.spotBaseUrl;
+    QUrl url(spotBase);
     QUrlQuery q;
     if (m_cfg.provider == ScanConfig::Provider::Sina) {
         q.addQueryItem("page", QString::number(pn));
@@ -172,6 +196,12 @@ void Ma5Scanner::fetchSpotPage(int pn)
         if (m_cancelled) return;
 
         if (err != QNetworkReply::NoError) {
+            if (m_cfg.provider == ScanConfig::Provider::AkShare
+                && m_akShareSpotUrlIndex + 1 < m_akShareSpotUrlList.size()) {
+                ++m_akShareSpotUrlIndex;
+                fetchSpotPage(pn);
+                return;
+            }
             emit failed(QString("拉取列表失败：%1").arg(errStr));
             return;
         }
@@ -185,6 +215,11 @@ void Ma5Scanner::fetchSpotPage(int pn)
             }
         } else if (m_cfg.provider == ScanConfig::Provider::AkShare) {
             if (!parseSpotPageAkShare(normalizeJsonMaybeJsonp(raw), page, &total)) {
+                if (m_akShareSpotUrlIndex + 1 < m_akShareSpotUrlList.size()) {
+                    ++m_akShareSpotUrlIndex;
+                    fetchSpotPage(pn);
+                    return;
+                }
                 emit failed(QString("解析列表失败。响应前200字：%1").arg(QString::fromUtf8(raw.left(200))));
                 return;
             }
@@ -412,6 +447,11 @@ void Ma5Scanner::requestKlineInitial(const Spot& s)
     if (m_cfg.provider == ScanConfig::Provider::AkShare) {
         t.marketTryList = {s.market};
         t.marketTryIndex = 0;
+        t.klineBaseUrlList = splitBaseUrls(m_cfg.klineBaseUrl);
+        if (t.klineBaseUrlList.isEmpty()) {
+            t.klineBaseUrlList.push_back(m_cfg.klineBaseUrl);
+        }
+        t.klineBaseUrlIndex = 0;
     } else {
         t.marketTryList = fallbackMarketsFor(s);
         t.marketTryIndex = 0;
@@ -429,7 +469,10 @@ void Ma5Scanner::sendKlineTask(Task t)
     const int aboveDays = (m_cfg.mode == ScanConfig::Mode::PullbackToMa5) ? m_cfg.pullbackAboveDays : 0;
     const int needLmt = qMax(40, qMax(m_cfg.belowDays, aboveDays) + 15);
 
-    QUrl url(m_cfg.klineBaseUrl);
+    const QString klineBase = (m_cfg.provider == ScanConfig::Provider::AkShare && !t.klineBaseUrlList.isEmpty())
+                                  ? t.klineBaseUrlList.value(t.klineBaseUrlIndex)
+                                  : m_cfg.klineBaseUrl;
+    QUrl url(klineBase);
     QUrlQuery q;
     if (m_cfg.provider == ScanConfig::Provider::Sina) {
         const bool isShanghai = (t.s.market == 1 || t.s.code.startsWith("6"));
@@ -489,6 +532,13 @@ void Ma5Scanner::sendKlineTask(Task t)
         bool okBars = (err == QNetworkReply::NoError) && parseKlineBars(normalizeJsonMaybeJsonp(raw), m_cfg, dates, closes);
 
         if (!okBars) {
+            if (m_cfg.provider == ScanConfig::Provider::AkShare
+                && t.klineBaseUrlIndex + 1 < t.klineBaseUrlList.size()) {
+                ++t.klineBaseUrlIndex;
+                sendKlineTask(t);
+                pumpKline();
+                return;
+            }
             // ✅ 失败：优先换 market；都试过再按 retry 次数重试
             if (t.marketTryIndex + 1 < t.marketTryList.size()) {
                 ++t.marketTryIndex;
