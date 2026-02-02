@@ -33,7 +33,8 @@ struct ScanConfig {
     bool sortDesc = true;
     enum class Provider {
         Eastmoney,
-        Sina
+        Sina,
+        AkShare
     };
     Provider provider = Provider::Eastmoney;
     QString spotBaseUrl = "https://82.push2.eastmoney.com/api/qt/clist/get";
@@ -85,6 +86,8 @@ private:
         QList<int> marketTryList;
         int marketTryIndex = 0;
         QString secidUsed; // 本次请求实际用的 secid
+        QStringList klineBaseUrlList;
+        int klineBaseUrlIndex = 0;
     };
 
     void requestKlineInitial(const Spot& s);   // 入队用：创建 Task
@@ -95,8 +98,10 @@ private:
     static bool computeStatsFromBars(const QVector<QString>& dates, const QVector<double>& closes, int belowDays, int aboveDays, KlineStats& out);
     static bool parseSpotPageEastmoney(const QByteArray& body, QVector<Spot>& outPage, int* totalOut);
     static bool parseSpotPageSina(const QByteArray& body, QVector<Spot>& outPage);
+    static bool parseSpotPageAkShare(const QByteArray& body, QVector<Spot>& outPage, int* totalOut);
     static bool parseKlineBarsEastmoney(const QByteArray& body, QVector<QString>& dates, QVector<double>& closes);
     static bool parseKlineBarsSina(const QByteArray& body, QVector<QString>& dates, QVector<double>& closes);
+    static bool parseKlineBarsAkShare(const QByteArray& body, QVector<QString>& dates, QVector<double>& closes);
 
     // cache
     void loadCache();
@@ -118,6 +123,8 @@ private:
 
     QVector<Spot> m_spots;
     int m_spotTotal = 0;
+    QStringList m_akShareSpotUrlList;
+    int m_akShareSpotUrlIndex = 0;
 
     QQueue<Spot> m_queue;
     int m_totalToDo = 0;   // 固定总数
